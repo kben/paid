@@ -20,6 +20,14 @@ export default function parse(str: string): Map<string, Certificate[]> {
                 result.get(ik)!.push(certificate)
             }
         })
+
+        if (iks.length == 0) {
+            if (!result.has("CA")) {
+                result.set("CA", [certificate])
+            } else {
+                result.get("CA")!.push(certificate)
+            }
+        }
     })
 
     return result

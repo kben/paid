@@ -2,8 +2,9 @@ import MockDate from "mockdate";
 import { absender, transmissionIdentifiers } from "../../src/transmission/utils";
 import { makeNutzdaten } from "../../src/sgb-xi";
 import { makeAnwendungsreferenz, makeDateiname } from "../../src/sgb-xi/filenames";
-import { payload1, payload2, payload3 } from "../samples/billingPayloads";
+import { payload1, payload2, payload3, institutionLists } from "../samples/billingPayloads";
 import { result1, result2, result3 } from "../samples/billingResults";
+import { InstitutionListsIndex } from "../../src/kostentraeger";
 
 describe("payload", () => {
 
@@ -13,8 +14,9 @@ describe("payload", () => {
         const { transferNumber, datenaustauschreferenz, laufendeDatenannahmeImJahr } = transmissionIdentifiers(billingData, "");
         const sender = absender(billingData, invoices[0]);
         const dateiname = makeDateiname(billingData.testIndicator, transferNumber);
-        const anwendungsreferenz = makeAnwendungsreferenz(billingData, sender.ik, "AO", laufendeDatenannahmeImJahr);
-        const nutzdaten = makeNutzdaten(billingData, invoices, sender.ik, "000000011", datenaustauschreferenz, anwendungsreferenz);
+        const month = invoices[0].faelle[0].einsaetze[0].leistungsBeginn;
+        const anwendungsreferenz = makeAnwendungsreferenz(billingData, month, sender.ik, "AO", laufendeDatenannahmeImJahr);
+        const {nutzdaten} = makeNutzdaten(billingData, invoices, new InstitutionListsIndex(institutionLists), sender.ik, "000000011", datenaustauschreferenz, anwendungsreferenz);
         
         expect(dateiname).toEqual(result1.dateiname);
         expect(anwendungsreferenz).toEqual(result1.anwendungsreferenz);
@@ -28,8 +30,9 @@ describe("payload", () => {
         const { transferNumber, datenaustauschreferenz, laufendeDatenannahmeImJahr } = transmissionIdentifiers(billingData, "");
         const sender = absender(billingData, invoices[0]);
         const dateiname = makeDateiname(billingData.testIndicator, transferNumber);
-        const anwendungsreferenz = makeAnwendungsreferenz(billingData, sender.ik, "AO", laufendeDatenannahmeImJahr);
-        const nutzdaten = makeNutzdaten(billingData, invoices, sender.ik, "000000011", datenaustauschreferenz, anwendungsreferenz);
+        const month = invoices[0].faelle[0].einsaetze[0].leistungsBeginn;
+        const anwendungsreferenz = makeAnwendungsreferenz(billingData, month, sender.ik, "AO", laufendeDatenannahmeImJahr);
+        const {nutzdaten} = makeNutzdaten(billingData, invoices, new InstitutionListsIndex(institutionLists), sender.ik, "000000011", datenaustauschreferenz, anwendungsreferenz);
 
         expect(dateiname).toEqual(result2.dateiname);
         expect(anwendungsreferenz).toEqual(result2.anwendungsreferenz);
@@ -43,8 +46,9 @@ describe("payload", () => {
         const { transferNumber, datenaustauschreferenz, laufendeDatenannahmeImJahr } = transmissionIdentifiers(billingData, "");
         const sender = absender(billingData, invoices[0]);
         const dateiname = makeDateiname(billingData.testIndicator, transferNumber);
-        const anwendungsreferenz = makeAnwendungsreferenz(billingData, sender.ik, "AO", laufendeDatenannahmeImJahr);
-        const nutzdaten = makeNutzdaten(billingData, invoices, sender.ik, "000000011", datenaustauschreferenz, anwendungsreferenz);
+        const month = invoices[0].faelle[0].einsaetze[0].leistungsBeginn;
+        const anwendungsreferenz = makeAnwendungsreferenz(billingData, month, sender.ik, "AO", laufendeDatenannahmeImJahr);
+        const {nutzdaten} = makeNutzdaten(billingData, invoices, new InstitutionListsIndex(institutionLists), sender.ik, "000000011", datenaustauschreferenz, anwendungsreferenz);
 
         expect(dateiname).toEqual(result3.dateiname);
         expect(anwendungsreferenz).toEqual(result3.anwendungsreferenz);
@@ -52,6 +56,4 @@ describe("payload", () => {
         MockDate.reset();
     });
 
-    
-
-})
+});

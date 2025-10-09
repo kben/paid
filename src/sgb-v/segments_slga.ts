@@ -5,7 +5,8 @@
   */
 
 import { segment } from "../edifact/builder"
-import { char, decimal, int, varchar, date } from "../edifact/formatter"
+import { char, decimal, int, varchar } from "../edifact/formatter"
+import { date } from "../formatter"
 import { Segment } from "../edifact/types"
 import { Institution } from "../types"
 import { 
@@ -178,14 +179,14 @@ export const NAM = (institution: Institution): Segment => {
         const ansprechnpartner = institution.ansprechpartner[i]
         if (ansprechnpartner) {
             // f.e. {name: "John", phone: "123"} becomes "John, 123"
-            ansprechpartner3[i] = Object.values(ansprechnpartner).filter(Boolean).join(", ").substr(0, 30)
+            ansprechpartner3[i] = Object.values(ansprechnpartner).filter(Boolean).join(", ").substring(0, 30)
         }
     }
 
     return segment(
         "NAM",
-        institution.name.substr(0, 30),
+        institution.name.substring(0, 30),
         ...ansprechpartner3,
-        institution.email?.substr(0, 70)
+        institution.email?.substring(0, 70)
     )
 }

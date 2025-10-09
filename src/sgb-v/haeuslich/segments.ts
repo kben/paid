@@ -9,7 +9,8 @@
   */
 
 import { segment } from "../../edifact/builder"
-import { decimal, int, varchar, date, duration, time } from "../../edifact/formatter"
+import { decimal, int, varchar } from "../../edifact/formatter"
+import { date, duration, time } from "../../formatter"
 import { 
     haeuslicheKrankenpflegePositionsnummerCode
 } from "./codes"
@@ -41,7 +42,7 @@ export const einsatzSegment = (
     date(startDateTime),
     time(startDateTime),
     time(endDateTime),
-    int(duration(startDateTime, endDateTime), 0, 9999)
+    int(duration(startDateTime, endDateTime, "minutes"), 0, 9999)
 )
 
 /** Einzelfallnachweis Häusliche Krankenpflege / Haushaltshilfe */

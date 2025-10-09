@@ -6,7 +6,8 @@
   */
 
 import { segment } from "../edifact/builder"
-import { char, varchar, fixedInt, date, decimal } from "../edifact/formatter"
+import { char, varchar, fixedInt, decimal } from "../edifact/formatter"
+import { date } from "../formatter"
 import { VerarbeitungskennzeichenSchluessel } from "./codes"
 import { REC as SLGA_REC } from "./segments_slga"
 import { 
@@ -107,29 +108,29 @@ export const NAD = ({
     address
 }: Versicherter) => segment(
     "NAD",
-    lastName.substr(0, 47),
-    firstName.substr(0, 30),
+    lastName.substring(0, 47),
+    firstName.substring(0, 30),
     date(birthday),
     address ? concatStreetAndHousenumber(address.street, address.houseNumber, 30) : undefined,
-    address?.postalCode?.substr(0, 7),
-    address?.city?.substr(0, 25),
-    address?.countryCode
+    address?.postalCode?.substring(0, 7),
+    address?.city?.substring(0, 25),
+    address?.countryCode || undefined
 )
 
 function concatStreetAndHousenumber(
-    street: string | undefined,
-    houseNumber: string | undefined,
+    street: string | undefined | null,
+    houseNumber: string | undefined | null,
     maxLength: number
 ): string | undefined {
     if (!street || street.length == 0) {
         return undefined
     }
     else if (!houseNumber || houseNumber.length == 0) {
-        return street.substr(0, maxLength)
+        return street.substring(0, maxLength)
     } else {
         /** If we have to cut, we should cut the street, not the housenumber - if possible */
         const len = Math.max(0, maxLength - houseNumber.length /* the space: */ - 1 )
-        return (street.substr(0, len) + " " + houseNumber).substr(0, maxLength)
+        return (street.substring(0, len) + " " + houseNumber).substring(0, maxLength)
     }
 }
 
@@ -155,13 +156,13 @@ export const IMG = (
  */
 
 /** Textfeld */
-export const TXT = (description: string) => segment("TXT", description.substr(0, 70))
+export const TXT = (description: string) => segment("TXT", description.substring(0, 70))
 
 /** Diagnose */
 export const DIA = ({ diagnoseschluessel, diagnosetext }: Diagnose) => segment(
     "DIA",
     varchar(diagnoseschluessel, 12),
-    diagnosetext?.substr(0, 70)
+    diagnosetext?.substring(0, 70)
 )
 
 /** Kostenzusage */

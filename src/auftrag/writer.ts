@@ -63,7 +63,7 @@ export default function write(auftragsdatei: Auftrag): string {
         // compression (2 digits).
         // 00 = none, 02 = gzip, 03 = zip (one file), 07 = bzip2, 13 = zip (several files)
         "00",
-        // type of compression (2 digits). 03 = PKCS#7
+        // type of encryption (2 digits). 03 = PKCS#7
         "03",
         // type of signature (2 digits), 03 = PKCS#7
         "03",

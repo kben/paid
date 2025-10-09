@@ -8,15 +8,15 @@ import { AnwendungsreferenzFactory } from "../transmission"
 /** A.k.a. "logischer Dateiname" */
 export const makeAnwendungsreferenz: AnwendungsreferenzFactory = (
     {
-        rechnungsart,
-        abrechnungsmonat
+        rechnungsart
     }: BillingData,
+    abrechnungsmonat: Date,
     absenderIK: string,
 ) => [
     // "Absenderklassifikation". "SL" stands for "Sonstige Leistungserbringer"
     "SL",
     // Index 2-3 of the IK is the "Regionalschlüssel", index 4-7 is a serial number
-    absenderIK.substr(2, 6),
+    absenderIK.substring(2, 2 + 6),
     // Who sends this bill: "S" stands for "Selbstabrechner", "A" stands for "Abrechnungszentrum"
     rechnungsart == "1" ? "S" : "A",
     (abrechnungsmonat.getMonth() + 1).toString().padStart(2, "0"),

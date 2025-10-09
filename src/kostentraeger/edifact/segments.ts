@@ -152,7 +152,7 @@ export type NAM = {
 export type ANS = {
     /** Type of address */
     anschriftartSchluessel: AnschriftartSchluessel,
-    postcode: number,
+    postcode: string,
     /** max. 25 characters */
     place: string,
     /* Street & housenumber if anschriftartSchluessel == 1, 

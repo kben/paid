@@ -18,7 +18,6 @@ describe("Häusliche Krankenpflege message", () => {
                 abrechnungscode: "16",
                 location: "HH",
                 tarifbereich: "24",
-                sondertarifJeKostentraegerIK: {"000000003": "XXX"},
                 umsatzsteuerBefreiung: "01",
                 email: "test@example.com",
             },
@@ -33,22 +32,25 @@ describe("Häusliche Krankenpflege message", () => {
             rechnungsdatum: new Date("2021-12-12")
         }, [{
                 versicherter: {
-                    pflegekasseIK: "000000004",
-                    kostentraegerIK: "999999999",
+                    krankenkasseIK: "000000004",
                     firstName: "Zaphod",
                     lastName: "Beeblebrox",
                     birthday: new Date("1337-01-23"),
+                    pflegegrad: [],
                     address: {
                         street: "Very long street name that seemingly has no end",
                         houseNumber: "222",
                         postalCode: "555555511111",
                         city: "Very long city name that is very long",
                         countryCode: "HV"
-                    }
+                    },
+                    versichertennummer: null,
+                    versichertenstatus: null,
                 },
                 belegnummer: "belegnumma",
                 beleginformation: "0",
                 besondereVersorgungsform: "1",
+                tarifkennzeichen: "XXX",
                 einsaetze: [{
                     leistungsBeginn: new Date("2000-10-10 13:37:00"),
                     leistungsEnde: new Date("2000-10-10 13:37:01"),
@@ -110,15 +112,17 @@ describe("Häusliche Krankenpflege message", () => {
                 },minVerordnung]
             }, {
                 versicherter: {
-                    pflegekasseIK: "000000004",
-                    kostentraegerIK: "999999999",
+                    krankenkasseIK: "000000004",
                     versichertennummer: "versicherter",
                     versichertenstatus: "31000123456",
                     firstName: "Arthur",
                     lastName: "Dent",
-                    birthday: new Date("1970-01-23")
+                    birthday: new Date("1970-01-23"),
+                    pflegegrad: [],
+                    address: null,
                 },
                 belegnummer: "belegnum",
+                tarifkennzeichen: "XXX",
                 einsaetze: [{
                     leistungsBeginn: new Date("1000-10-10 3:37:00"),
                     leistungsEnde: new Date("1000-10-10 13:37:01"),

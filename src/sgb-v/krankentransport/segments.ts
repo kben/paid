@@ -7,7 +7,8 @@
   */
 
 import { segment } from "../../edifact/builder"
-import { char, decimal, int, varchar, date, duration, time } from "../../edifact/formatter"
+import { char, decimal, int, varchar } from "../../edifact/formatter"
+import { date, duration, time } from "../../formatter"
 import { ZuzahlungsartSchluessel } from "../codes"
 import { LaenderkennzeichenSchluessel } from "../../country_codes"
 import { KrankentransportVerordnung } from "./types"
@@ -76,7 +77,7 @@ export const EKT = (
     decimal(kilometersDriven, 4, 2),
     time(startDateTime),
     time(endDateTime),
-    int(duration(startDateTime, endDateTime), 0, 9999)
+    int(duration(startDateTime, endDateTime, "minutes"), 0, 9999)
 )
 
 /** Zuzahlung

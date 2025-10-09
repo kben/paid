@@ -83,6 +83,8 @@ export type AbrechnungscodeEinzelschluessel =
     SozioTherapeutikAbrechnungscodeSchluessel |
     SAPVAbrechnungscodeSchluessel |
     VersorgungsplanungAbrechnungscodeSchluessel |
+    ModellvorhabenAbrechnungscodeSchluessel |
+    AKIAbrechnungscodeSchluessel |
     KurzzeitpflegeAbrechnungscodeSchluessel
 
 export const hilfsmittellieferantAbrechnungscodeSchluessel = {
@@ -194,6 +196,23 @@ export const versorgungsplanungAbrechnungscodeSchluessel = {
     "76": "Leistungserbringer nach § 132g SGB V",
 }
 export type VersorgungsplanungAbrechnungscodeSchluessel = keyof typeof versorgungsplanungAbrechnungscodeSchluessel
+
+export const modellvorhabenAbrechnungscodeSchluessel = {
+    "B1": "Leistungserbringer von Modellvorhaben nach § 64d SGB V",
+}
+export type ModellvorhabenAbrechnungscodeSchluessel = keyof typeof modellvorhabenAbrechnungscodeSchluessel
+
+export const akiAbrechnungscodeSchluessel = {
+    "A1": "ambulante AKI: freigemeinnütziger Anbieter",
+    "A2": "ambulante AKI: privatgewerbliche Anbieter",
+    "A3": "ambulante AKI: öffentlicher Anbieter",
+    "A4": "ambulante AKI: sonstiger Anbieter",
+    "A5": "stationäre AKI: freigemeinnütziger Anbieter",
+    "A6": "stationäre AKI: privatgewerbliche Anbieter",
+    "A7": "stationäre AKI: öffentlicher Anbieter",
+    "A8": "stationäre AKI: sonstiger Anbieter",
+}
+export type AKIAbrechnungscodeSchluessel = keyof typeof akiAbrechnungscodeSchluessel
 
 export const kurzzeitpflegeAbrechnungscodeSchluessel = {
     "91": "Kurzzeitpflege: privat gewerblicher Anbieter",
@@ -326,9 +345,9 @@ const versichertenstatusToSummenstatus = new Map<string, SummenstatusSchluessel>
 ])
 
 /** Returns Summenstatus by Versichertenstatus */
-export function getSummenstatus(versichertenStatus?: string): SummenstatusSchluessel {
+export function getSummenstatus(versichertenStatus: string | undefined | null): SummenstatusSchluessel {
     if (versichertenStatus == undefined) { return "99" }
-    return versichertenstatusToSummenstatus.get(versichertenStatus.substr(0,1)) ?? "99"
+    return versichertenstatusToSummenstatus.get(versichertenStatus.substring(0,1)) ?? "99"
 }
 
 /** Verarbeitungskennzeichen für die Weiterverarbeitung der Nachricht.
@@ -753,7 +772,8 @@ export type HeilmittelBereichSchluessel = keyof typeof heilmittelBereichSchluess
     "20": "Gruppenschlüssel Heilmittelerbringer (Schlüssel 21-29)",
     "30": "Gruppenschlüssel Häusliche Krankenpflege (Schlüssel 31-34)",
     "40": "Gruppenschlüssel Krankentransportleistungen (Schlüssel 41-49)",
-    "90": "Gruppenschlüssel Kurzzeitpflege (Schlüssel 91-94)"
+    "A0": "Gruppenschlüssel außerklinische Intensivpflege (AKI) (Schlüssel A1-A8)",
+    "90": "Gruppenschlüssel Kurzzeitpflege (Schlüssel 91-94)",
 }
 export type AbrechnungscodeGruppenschluessel = keyof typeof abrechnungscodeGruppenschluessel
 
@@ -779,7 +799,9 @@ export const abrechnungscodeSchluessel = {
     ...sozioTherapeutikAbrechnungscodeSchluessel,
     ...sapvAbrechnungscodeSchluessel,
     ...versorgungsplanungAbrechnungscodeSchluessel,
-    ...kurzzeitpflegeAbrechnungscodeSchluessel
+    ...modellvorhabenAbrechnungscodeSchluessel,
+    ...akiAbrechnungscodeSchluessel,
+    ...kurzzeitpflegeAbrechnungscodeSchluessel,
 }
 
 export type AbrechnungscodeSchluessel = keyof typeof abrechnungscodeSchluessel
@@ -789,8 +811,9 @@ const gruppenschluesselToEinzelSchluessel =
         ["10", ["11","12","13","14","15","16","17","18","19"]],
         ["20", ["21","22","23","24","25","26","27","28","29"]],
         ["30", ["31","32","33","34"]],
-        ["40", ["41","42","43","44","45","46","47","49"]],
-        ["90", ["91", "92", "93", "94"]]
+        ["40", ["41", "42", "43", "44", "45", "46", "47", "49"]],
+        ["A0", ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"]],
+        ["90", ["91", "92", "93", "94"]],
     ])
 
 /** Get all AbrechnungscodeEinzelschluessel that are allocated to the given 

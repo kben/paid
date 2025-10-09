@@ -6,7 +6,8 @@
   */
 
 import { segment } from "../../edifact/builder"
-import { char, decimal, int, varchar, date, duration, time } from "../../edifact/formatter"
+import { char, decimal, int, varchar } from "../../edifact/formatter"
+import { date, duration, time } from "../../formatter"
 import { Leistungserbringergruppe, leistungserbringergruppeCode } from "../types"
 import { SAPVVerordnung } from "./types"
 
@@ -57,7 +58,7 @@ export const ZZL = (
     time(startDateTime),
     date(endDateTime),
     time(endDateTime),
-    int(duration(startDateTime, endDateTime), 0 , 9999)
+    int(duration(startDateTime, endDateTime, "minutes"), 0 , 9999)
 )
 
 /** Zusatzinfo Verordnung für SAPV 

@@ -2,8 +2,6 @@
   * see docs/documents.md for more info
   */
 
-import { Leistungsart, SGBVAbrechnungscode, SGBXILeistungsart } from "../kostentraeger";
-import { CareProviderLocationSchluessel } from "../kostentraeger/types";
 import { Invoice } from "../sgb-xi/types";
 import { BillingData } from "../types";
 
@@ -34,8 +32,8 @@ export const transmissionIdentifiers = (
     { datenaustauschreferenzJeEmpfaengerIK, laufendeDatenannahmeImJahrJeEmpfaengerIK}: BillingData,
     recipientIK: string
 ) => {
-    const datenaustauschreferenz = datenaustauschreferenzJeEmpfaengerIK[recipientIK] || 1;
-    const laufendeDatenannahmeImJahr = laufendeDatenannahmeImJahrJeEmpfaengerIK[recipientIK] || 1;
+    const datenaustauschreferenz = (datenaustauschreferenzJeEmpfaengerIK[recipientIK] || 0) + 1;
+    const laufendeDatenannahmeImJahr = (laufendeDatenannahmeImJahrJeEmpfaengerIK[recipientIK] || 0) + 1;
     const transferNumber = (datenaustauschreferenz - 1) % 1000;
     return { datenaustauschreferenz, laufendeDatenannahmeImJahr, transferNumber};
 };

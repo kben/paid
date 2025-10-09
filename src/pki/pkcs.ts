@@ -19,7 +19,7 @@ import {
     BasicConstraints,
     Extension
 } from "pkijs";
-import { Integer, OctetString, PrintableString, fromBER } from "asn1js";
+import { Integer, OctetString, PrintableString, Sequence, Set as ASN1jsSet, fromBER } from "asn1js";
 import { initCrypto } from "./crypto";
 import { bufferToCertificate, importPKCS8, exportPKCS8, bufferToHex } from "./utils";
 import { File, ResultOrErrors } from "../types";
@@ -94,7 +94,7 @@ export const encryptMessage = async (
     await envelopedData.encrypt({
         name: "AES-CBC", // AES-256-CBC, OID 2.16.840.1.101.3.4.1.42
         length: 256
-    } as Algorithm, message);
+    }, message);
     // encrypt method automatically sets version value to 2, but we need 0 according to GKV spec
     envelopedData.version = 0;
 
@@ -130,14 +130,19 @@ export const decryptMessage = async (
     });
 };
 
+export const getCertificatesFromP7C = (
+    p7cFileContent: ArrayBuffer
+) => {
+    const signedContentInfo = new ContentInfo({ schema: fromBER(p7cFileContent).result });
+    const signedData = new SignedData({ schema: signedContentInfo.content });
+    return (signedData.certificates || []) as Certificate[];
+};
+
 export const getNewCertificateFromP7C = (
     p7cFileContent: ArrayBuffer, 
     ik: string
 ): ArrayBuffer | undefined => {
-    const signedContentInfo = new ContentInfo({ schema: fromBER(p7cFileContent).result });
-    const signedData = new SignedData({ schema: signedContentInfo.content });
-
-    return (signedData.certificates as Certificate[])?.find(certificate => 
+    return getCertificatesFromP7C(p7cFileContent).find(certificate => 
         certificate.subject.typesAndValues.find(item => 
             "" + item.type == "2.5.4.11" && item.value.valueBlock.value == "IK" + ik
         )
@@ -201,12 +206,10 @@ const makeCertificationRequest = async (params: {
     }
 
     const pkcs10 = new CertificationRequest();
-    pkcs10.version = 0;
-    pkcs10.subject.typesAndValues = makeDistinguishedNames(
-        institutionName,
-        ik,
-        contactPersonName
-    );
+    // this is an important difference between the BER and the strict DER encoding and we need DER
+    pkcs10.subject.fromSchema(convertToDER(
+        makeDistinguishedNames(institutionName, ik, contactPersonName)
+    ));
 
     // importKey() sets certificate.subjectPublicKeyInfo.algorithm with algorithmId == 1.2.840.113549.1.1.1 (RSAES-PKCS1-v1_5)
     await pkcs10.subjectPublicKeyInfo.importKey(publicKey);
@@ -218,14 +221,14 @@ const makeCertificationRequest = async (params: {
     return {
         certificationRequestFile: {
             name: ik.substring(0, 8) + ".p10",
-            data: pkcs10.toSchema().toBER(),
+            bytes: new Uint8Array(pkcs10.toSchema(true).toBER()),
         } as File,
         privateKey: await exportPKCS8(privateKey),
         publicKeyHash: bufferToHex(publicKeyHash).toUpperCase(),
     };
 };
 
-export const makeDistinguishedNames = (
+const makeDistinguishedNames = (
     institutionName: string,
     ik: string,
     contactPersonName: string,
@@ -253,6 +256,16 @@ export const makeDistinguishedNames = (
         value: new PrintableString({ value: contactPersonName.substring(0, 128) })
     })
 ];
+
+const convertToDER = (names: AttributeTypeAndValue[]) => {
+    const schema = (new Sequence({
+        value: Array.from(names, element => new ASN1jsSet({
+            value: [element.toSchema()],
+        })),
+    }));
+    const der = schema.toBER();
+    return fromBER(der).result;
+};
 
 
 // - algorithms
@@ -291,6 +304,7 @@ export const createSelfSignedCertificate = async (
     ik: string,
     institutionContactPersonName: string,
     subjectPublicKeyInfo?: PublicKeyInfo,
+    validityInDays = 1
 ) => {
     const crypto = initCrypto();
     const distinguishedName = makeDistinguishedNames(institutionName, ik, institutionContactPersonName);
@@ -299,10 +313,11 @@ export const createSelfSignedCertificate = async (
     certificate.version = 2; // X.509v3
     certificate.serialNumber = new Integer({ value: serialNumber });
     certificate.signature = getSignatureAlgorithm();
-    certificate.issuer.typesAndValues = distinguishedName.slice(0, 2);
-    certificate.subject.typesAndValues = distinguishedName;
+    // this is an important difference between the BER and the strict DER encoding and we need DER
+    certificate.issuer.fromSchema(convertToDER(distinguishedName.slice(0, 2)));
+    certificate.subject.fromSchema(convertToDER(distinguishedName));
     certificate.notBefore.value = new Date(Date.now() - 86400000);
-    certificate.notAfter.value = new Date(Date.now() + 86400000);
+    certificate.notAfter.value = new Date(Date.now() + 86400000 * validityInDays);
     certificate.extensions = [];
 
     const basicConstraints = new BasicConstraints({
@@ -354,6 +369,7 @@ export const createSelfSignedP7C = async (
     ik: string,
     institutionContactPersonName: string,
     subjectPublicKeyInfo: PublicKeyInfo,
+    validityInDays = 1,
 ) => {
     const result = await createSelfSignedCertificate(
         undefined, 
@@ -361,6 +377,7 @@ export const createSelfSignedP7C = async (
         ik,
         institutionContactPersonName,
         subjectPublicKeyInfo,
+        validityInDays,
     );
     return await signMessage(
         new ArrayBuffer(0),

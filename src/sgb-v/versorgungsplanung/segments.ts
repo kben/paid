@@ -6,7 +6,8 @@
   */
 
 import { segment } from "../../edifact/builder"
-import { char, decimal, int, varchar, date } from "../../edifact/formatter"
+import { char, decimal, int, varchar } from "../../edifact/formatter"
+import { date } from "../../formatter"
 import { Leistungserbringergruppe, leistungserbringergruppeCode } from "../types"
 
 /** Segments for SLLA P message (gesundheitliche Versorgungsplanung nach § 132g SGB V) 

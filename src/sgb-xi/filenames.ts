@@ -10,9 +10,9 @@ import { AnwendungsreferenzFactory } from "../transmission"
 export const makeAnwendungsreferenz: AnwendungsreferenzFactory = (
     {
         rechnungsart,
-        abrechnungsmonat,
         korrekturlieferung = 0
     }: BillingData,
+    abrechnungsmonat: Date,
     _,
     kassenart: KassenartSchluessel,
     laufendeDatenannahmeImJahr: number,
@@ -20,7 +20,7 @@ export const makeAnwendungsreferenz: AnwendungsreferenzFactory = (
     // "Absenderklassifikation". "PL" stands for "Pflege-Leistungserbringer"
     "PL",
     (abrechnungsmonat.getMonth() + 1).toString().padStart(2, "0") +
-    abrechnungsmonat.getFullYear().toString().substr(3, 1),
+    abrechnungsmonat.getFullYear().toString().substring(3, 3 + 1),
     korrekturlieferung,
     laufendeDatenannahmeImJahr.toString().slice(0, 2).padStart(2, "0"),
     // Who sends this bill: "S" stands for "Selbstabrechner", "A" stands for "Abrechnungszentrum"

@@ -14,7 +14,8 @@ import {
     summenstatusSchluessel,
 } from "./codes"
 import { elements } from "../edifact/builder"
-import { date, time, char, fixedInt } from "../edifact/formatter"
+import { char, fixedInt } from "../edifact/formatter"
+import { date, time } from "../formatter"
 import { Message, Segment } from "../edifact/types"
 import { 
     FKT, 

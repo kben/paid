@@ -74,7 +74,7 @@ describe("kostentraeger edifact parser", () => {
             kto: undefined,
             ansList: [{
                 anschriftartSchluessel: "1",
-                postcode: 42285,
+                postcode: "42285",
                 place: "Wuppertal",
                 address: "Lichtscheiderstraße 89"
             }],
@@ -134,17 +134,17 @@ describe("kostentraeger edifact parser", () => {
             "ANS+3+34567+Wippertal'"
         ))[0].ansList).toEqual([{
             anschriftartSchluessel: "1",
-            postcode: 12345,
+            postcode: "12345",
             place: "Wuppertal",
             address: "Lichtscheiderstraße 89"
         }, {
             anschriftartSchluessel: "2",
-            postcode: 67891,
+            postcode: "67891",
             place: "Wappertal",
             address: "123456"
         }, {
             anschriftartSchluessel: "3",
-            postcode: 34567,
+            postcode: "34567",
             place: "Wippertal"
         }])
     })

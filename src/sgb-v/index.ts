@@ -73,8 +73,8 @@ const groupByLeistungserbringer = <T extends BaseAbrechnungsfall>(
     ).map(([le, invoices]) => [le, invoices.flatMap(invoice => invoice.abrechnungsfaelle)])
 
 /** Returns an array of tuples of [Pflegekasse IK, Abrechnungsfaelle[]] */
-const groupByPflegekasseIK = <T extends BaseAbrechnungsfall>(faelle: T[]): [string, T[]][] => 
-    entriesGroupedBy(faelle, fall => fall.versicherter.pflegekasseIK)
+const groupByKrankenkasseIK = <T extends BaseAbrechnungsfall>(faelle: T[]): [string, T[]][] => 
+    entriesGroupedBy(faelle, fall => fall.versicherter.krankenkasseIK)
 
 /** Returns an array of tuples of [Kostentraeger, Abrechnungsfaelle[]] */
 const groupByKostentraeger = <T extends BaseAbrechnungsfall>(
@@ -130,7 +130,7 @@ const getKostentraeger = (
     fall: BaseAbrechnungsfall
 ) =>
     institutionsIndex.findForData(
-        fall.versicherter.pflegekasseIK,
+        fall.versicherter.krankenkasseIK,
         { sgbvAbrechnungscode: leistungserbringer.abrechnungscode },
         leistungserbringer.location
     )

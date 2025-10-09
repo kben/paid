@@ -1,6 +1,4 @@
 import { createTransmissionSGBXI, groupInvoicesByRecipientSGBXI } from "../../src/transmission/index";
-import kostentreagerJson from "../../dist/kostentraeger.min.json";
-import { deserializeInstitutionLists } from "../../src/kostentraeger/json_serializer";
 import { Einsatz, Invoice, LeistungskomplexverguetungLeistung } from "../../src/sgb-xi/types";
 import { CareProviderLocationSchluessel } from "../../src/kostentraeger/types";
 import { TarifbereichSchluessel, LeistungsartSchluessel } from "../../src/sgb-xi/codes";
@@ -10,6 +8,8 @@ import { decryptMessage } from "../../src/pki/pkcs";
 import { writeFileSync, existsSync, mkdirSync, readFileSync } from "fs";
 import { OctetString, fromBER } from "asn1js";
 import { ContentInfo, SignedData } from "pkijs";
+import { institutionLists } from "../samples/institutions";
+import { InstitutionListsIndex } from "../../src/kostentraeger";
 
 type Leistungskomplex = {
     leistungsart: LeistungsartSchluessel,
@@ -74,23 +74,29 @@ describe("Testverfahren", () => {
                 street: "Willy-Brandt-Platz",
                 houseNumber: "5",
                 postalCode: "04109",
-                city: "Leipzig"
+                city: "Leipzig",
+                countryCode: null
             }, {
                 street: "Kiewer Straße",
                 houseNumber: "30",
                 postalCode: "04205",
-                city: "Leipzig"
+                city: "Leipzig",
+                countryCode: null
             }, {
                 street: "Georg-Schumann-Straße",
                 houseNumber: "290",
                 postalCode: "04159",
-                city: "Leipzig"
+                city: "Leipzig",
+                countryCode: null
             }, {
                 street: "Goldsternstraße",
                 houseNumber: "58",
+                postalCode: null,
+                city: null,
+                countryCode: null
             }],
             0.05),
-            institutionLists,
+            new InstitutionListsIndex(institutionLists),
         );
         expect(invoicesWithRecipient).toHaveLength(1);
         expect(recipientNotFound).toHaveLength(0);
@@ -98,6 +104,7 @@ describe("Testverfahren", () => {
         const transmission = await createTransmissionSGBXI(
             invoicesWithRecipient[0],
             makeBillingdata(certificateAsDER, privateKey),
+            new InstitutionListsIndex(institutionLists)
         );
 
         expect(transmission.errors).toBeUndefined();
@@ -112,8 +119,8 @@ describe("Testverfahren", () => {
                 mkdirSync("temp");
             }
 
-            writeFileSync("temp/" + payloadFile.name, Buffer.from(payloadFile.data));
-            writeFileSync("temp/" + instructionFile.name, Buffer.from(instructionFile.data));
+            writeFileSync("temp/" + payloadFile.name, Buffer.from(payloadFile.bytes));
+            writeFileSync("temp/" + instructionFile.name, Buffer.from(instructionFile.bytes));
 
             // decrypt, verify and compare encrypted file to unencrypted file content
             const fileAsArrayBuffer = readFileSync("temp/" + payloadFile.name).buffer;
@@ -125,12 +132,10 @@ describe("Testverfahren", () => {
             const textDecoder = new TextDecoder();
             const resultMessageForSender = textDecoder.decode(resultMessageBufferForSender);
             expect(await signedDataForSender.verify({ signer: 0 })).toEqual(true);
-            expect(resultMessageForSender).toEqual(textDecoder.decode(unencryptedPayloadFile.data));
+            expect(resultMessageForSender).toEqual(textDecoder.decode(unencryptedPayloadFile.bytes));
         }
     });
 });
-
-const institutionLists = deserializeInstitutionLists(JSON.stringify(kostentreagerJson));
 
 const previousMonth = () => {
     const month = new Date();
@@ -142,19 +147,21 @@ const previousMonth = () => {
 
 const makeBillingdata = (senderCertificate: ArrayBuffer, senderPrivateKey: ArrayBuffer): BillingData => ({
     rechnungsart: "1",
-    abrechnungsmonat: previousMonth(),
     testIndicator: "0",
+    verarbeitungskennzeichen: "01",
     datenaustauschreferenzJeEmpfaengerIK: {},
     laufendeDatenannahmeImJahrJeEmpfaengerIK: {},
-    rechnungsnummerprefix: "2021-0042",
+    rechnungsnummerprefix: "2021-0042-",
     senderCertificate,
     senderPrivateKey,
+    nextRechnungsnummer: 1,
+    nextBelegnummer: 1,
 });
 
 const makeInvoices = (
     location: CareProviderLocationSchluessel,
     tarifbereich: TarifbereichSchluessel,
-    pflegekasseIK: string,
+    krankenkasseIK: string,
     vereinbarung: Vereinbarung,
     addresses: Address[],
     punktwert?: number,
@@ -163,14 +170,20 @@ const makeInvoices = (
         leistungserbringer: {
             name: "Fiktiver ambulanter Pflegedienst",
             ik: "000000000",
+            postalAddress: {
+                street1: "ABC-Straße 12",
+                postalCode: "12345",
+                city: "Neustadt",
+            },
             ansprechpartner: [{
-                name: "Erika Mustermann"
+                name: "Erika Mustermann",
+                phone: null
             }],
             abrechnungscode: "39",
             location,
             tarifbereich,
-            sondertarifJeKostentraegerIK: {},
             umsatzsteuerBefreiung: "01",
+            umsatzsteuerOrdnungsnummer: null,
             email: "hallo@coopcare.de",
         },
         faelle: [{
@@ -178,10 +191,11 @@ const makeInvoices = (
                 firstName: "Erika",
                 lastName: "Bauer",
                 birthday: new Date(1936, 0, 17),
-                pflegekasseIK,
+                krankenkasseIK,
                 versichertennummer: "A000000000",
-                pflegegrad: "3",
-                address: addresses[0]
+                pflegegrad: [{ value: "3", since: new Date(0) }],
+                address: addresses[0],
+                versichertenstatus: null
             },
             einsaetze: [
                 ...makeEinsatzList(
@@ -196,16 +210,21 @@ const makeInvoices = (
                     1,
                     punktwert
                 ),
-            ]
+            ],
+            tarifkennzeichen: "",
+            kostentraegerIK: null,
+            belegnummer: null,
+            pflegegrad: null
         }, {
             versicherter: {
                 firstName: "Elfriede",
                 lastName: "Richter",
                 birthday: new Date(1938, 5, 4),
-                pflegekasseIK,
+                krankenkasseIK,
                 versichertennummer: "B000000000",
-                pflegegrad: "2",
-                address: addresses[1]
+                pflegegrad: [{ value: "2", since: new Date(0) }],
+                address: addresses[1],
+                versichertenstatus: null
             },
             einsaetze: makeEinsatzList(
                 [vereinbarung.grosseKoerperpflege, vereinbarung.reinigung],
@@ -213,15 +232,20 @@ const makeInvoices = (
                 2,
                 punktwert
             ),
+            tarifkennzeichen: "",
+            kostentraegerIK: null,
+            belegnummer: null,
+            pflegegrad: null
         }, {
             versicherter: {
                 firstName: "Manfred",
                 lastName: "Schneider",
-                birthday: new Date(1943,2,7),
-                pflegekasseIK,
+                birthday: new Date(1943, 2, 7),
+                krankenkasseIK,
                 versichertennummer: "C000000000",
-                pflegegrad: "2",
-                address: addresses[2]
+                pflegegrad: [{ value: "2", since: new Date(0) }],
+                address: addresses[2],
+                versichertenstatus: null
             },
             einsaetze: [
                 ...makeEinsatzList(
@@ -236,16 +260,21 @@ const makeInvoices = (
                     1,
                     punktwert
                 ),
-            ]
+            ],
+            tarifkennzeichen: "",
+            kostentraegerIK: null,
+            belegnummer: null,
+            pflegegrad: null
         }, {
             versicherter: {
                 firstName: "Peter",
                 lastName: "Weber",
                 birthday: new Date(1944, 8, 24),
-                pflegekasseIK,
+                krankenkasseIK,
                 versichertennummer: "D000000000",
-                pflegegrad: "3",
-                address: addresses[3]
+                pflegegrad: [{ value: "3", since: new Date(0) }],
+                address: addresses[3],
+                versichertenstatus: null
             },
             einsaetze: makeEinsatzList(
                 [vereinbarung.beratung],
@@ -253,7 +282,13 @@ const makeInvoices = (
                 0,
                 punktwert
             ),
-        }]
+            tarifkennzeichen: "",
+            kostentraegerIK: null,
+            belegnummer: null,
+            pflegegrad: null
+        }],
+        rechnungsnummer: null,
+        rechnungsdatum: null
     }]
 }
 
@@ -289,6 +324,7 @@ const makeEinsatzList = (
             qualifikationsabhaengigeVerguetung: "1",
             leistungsart,
             leistungsBeginn,
+            leistungsEnde: null,
             leistungskomplex,
             anzahl: 1,
             punktzahl,
@@ -296,7 +332,9 @@ const makeEinsatzList = (
             einzelpreis: einzelpreis == undefined && punktzahl != undefined && punktwert != undefined
                 ? punktzahl * punktwert
                 : einzelpreis,
-            zuschlaege: []
+            zuschlaege: [],
+            beschaeftigtennummer1: null,
+            beschaeftigtennummer2: null,
         } as LeistungskomplexverguetungLeistung))
     } as Einsatz));
 }

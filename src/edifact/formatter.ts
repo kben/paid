@@ -1,6 +1,6 @@
 /** asserts that the given string does not exceed the given length and returns the string */
-export const varchar = (str: string | undefined, maxLength: number): string | undefined => {
-    if (str === undefined) { return undefined }
+export const varchar = (str: string | undefined | null, maxLength: number): string | undefined => {
+    if (str == undefined) { return undefined }
 
     if (str.length > maxLength) {
         console.error(`"${str}" exceeds maximum field length of ${maxLength}`)
@@ -9,8 +9,8 @@ export const varchar = (str: string | undefined, maxLength: number): string | un
 }
 
 /** asserts that the given string exactly matches the given length and returns the string */
-export const char = (str: string | undefined, length: number): string | undefined => {
-    if (str === undefined) { return undefined }
+export const char = (str: string | undefined | null, length: number): string | undefined => {
+    if (str == undefined) { return undefined }
 
     if (str.length != length) {
         console.error(`"${str}" did not match required length of ${length}`)
@@ -19,8 +19,8 @@ export const char = (str: string | undefined, length: number): string | undefine
 }
 
 /** asserts that the given value is an int in the given range and returns the value as a string */
-export const int = (value: number | undefined, min: number, max: number): string | undefined => {
-    if (value === undefined) { return undefined }
+export const int = (value: number | undefined | null, min: number, max: number): string | undefined => {
+    if (value == undefined) { return undefined }
 
     if (!Number.isInteger(value)) {
         console.error(`"${value}" must be an integer`)
@@ -32,8 +32,8 @@ export const int = (value: number | undefined, min: number, max: number): string
 }
 
 /** asserts that the given value is an int and returns the value as a string of fixed length (prefixes value with 0s if necessary) */
-export const fixedInt = (value: number | undefined, length: number): string | undefined => {
-    if (value === undefined) { return undefined }
+export const fixedInt = (value: number | undefined | null, length: number): string | undefined => {
+    if (value == undefined) { return undefined }
 
     if (!Number.isInteger(value)) {
         console.error(`"${value}" must be an integer`)
@@ -44,8 +44,8 @@ export const fixedInt = (value: number | undefined, length: number): string | un
     return value.toString().padStart(length, "0")
 }
 
-export const decimal = (value: number | undefined, preDecimalPlaceCount: number, decimalPlaceCount: number): string | undefined => {
-    if (value === undefined) { return undefined }
+export const decimal = (value: number | undefined | null, preDecimalPlaceCount: number, decimalPlaceCount: number): string | undefined => {
+    if (value == undefined) { return undefined }
 
     const num = value.toLocaleString("de-DE", {
         minimumFractionDigits: decimalPlaceCount,
@@ -57,22 +57,3 @@ export const decimal = (value: number | undefined, preDecimalPlaceCount: number,
     }
     return num
 }
-
-/** Return only the day component of a date as a string formatted DD */
-export const day = (value: Date) => value.getDate().toString().padStart(2, "0")
-
-/** Return only the month component of a date as a string formatted MM (1 is January) */
-export const month = (value: Date) => (value.getMonth() + 1).toString().padStart(2, "0")
-
-
-/** Return the date as a string formatted JJJJMMDD */
-export const date = (value: Date) => value.getFullYear() + month(value) + day(value)
-
-/** Return only the time component of a date as a string formatted HHMM */
-export const time = (value: Date) =>
-    value.getHours().toString().padStart(2, "0") +
-    value.getMinutes().toString().padStart(2, "0")
-
-/** Return duration in minutes */
-export const duration = (start: Date, end: Date) =>
-    Math.ceil((end.getTime() - start.getTime()) / 60000)

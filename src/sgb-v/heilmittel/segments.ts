@@ -7,7 +7,8 @@
   */
 
 import { segment } from "../../edifact/builder"
-import { char, decimal, int, varchar, date } from "../../edifact/formatter"
+import { char, decimal, int, varchar } from "../../edifact/formatter"
+import { date } from "../../formatter"
 import { Leistungserbringergruppe, leistungserbringergruppeCode } from "../types"
 import { HeilmittelVerordnung } from "./types"
 
@@ -90,7 +91,7 @@ export const ZHE = ({
         leitsymptomatik.c ? "1" : "0" +
         leitsymptomatik.patientenindividuell ? "1" : "0"
     ) : "9999",
-    patientenindividuelleLeitsymptomatik?.substr(0, 70),
+    patientenindividuelleLeitsymptomatik?.substring(0, 70),
     dringlicherBehandlungsbedarf ? "1" : "0",
     heilmittelBereich,
     char(therapieFrequenz, 1)

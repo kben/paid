@@ -61,11 +61,12 @@ describe("validation utils", () => {
     })
 
     it("isRechnungsnummer", () => {
-        expect(isRechnungsnummer({ a: 123 }, "a")).toEqual(error("noString", "a"))
-        expect(isRechnungsnummer({ a: "-a" }, "a")).toEqual(error("rechnungsnummerIncorrect", "a"))
-        expect(isRechnungsnummer({ a: "/a" }, "a")).toEqual(error("rechnungsnummerIncorrect", "a"))
-        expect(isRechnungsnummer({ a: "a99-" }, "a")).toEqual(error("rechnungsnummerIncorrect", "a"))
-        expect(isRechnungsnummer({ a: "a99-4" }, "a")).toEqual(undefined)
+        expect(isRechnungsnummer(123 as any)).toEqual(error("noString"))
+        expect(isRechnungsnummer("-a-")).toEqual(error("rechnungsnummerIncorrect"))
+        expect(isRechnungsnummer("/a/")).toEqual(error("rechnungsnummerIncorrect"))
+        expect(isRechnungsnummer("a//99")).toEqual(error("rechnungsnummerIncorrect"))
+        expect(isRechnungsnummer("a99")).toEqual(undefined)
+        expect(isRechnungsnummer("a99-4/")).toEqual(undefined)
     })
 
     it("isTruncatedIfTooLong", () => {

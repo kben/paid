@@ -35,7 +35,8 @@ export const transliterateRecursively = <T extends Record<string, any>>(
                     type: ValidationResultType.Warning,
                     path: [key],
                     params: {
-                        transliteratedValue
+                        value,
+                        transliteratedValue,
                     }
                 });
             }

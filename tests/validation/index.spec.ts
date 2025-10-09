@@ -13,7 +13,7 @@ describe("validation", () => {
                 code: "noArray",
                 type: ValidationResultType.Error,
                 path: ["myobj", 3, "foo"],
-                message: ".myobj[3].foo: Must be an array."
+                message: "myobj[3].foo: Must be an array."
             },
             { 
                 code: "textTooLong",

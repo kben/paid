@@ -1,10 +1,12 @@
 import { 
+    DatenlieferungsartSchluessel,
     KostentraegerSGBVAbrechnungscodeSchluessel,
     KostentraegerSGBXILeistungsartSchluessel,
     LeistungserbringergruppeSchluessel
 } from "./edifact/codes"
 import { KassenartSchluessel } from "./filename/codes"
 import { Certificate } from '@peculiar/asn1-x509'
+import { Certificate as PkiCertificate } from "pkijs";
 
 /**
  * These types represent the data from Kostentraeger file(s) cast into a (more) accessible data model
@@ -34,6 +36,8 @@ export type InstitutionList = {
     validityStartDate: Date, 
     /** All the Kostentraeger for this umbrella organization */
     institutions: Institution[],
+    /** the certificates of the certificate authority */
+    caCertificates: PkiCertificate[],
 }
 
 /** Information for one Institution.
@@ -50,24 +54,27 @@ export type Institution = {
     /** Abbreviated name of the institution (max. 30 characters) */
     abbreviatedName: string,
 
-    vertragskassennummer?: number,
+    vertragskassennummer: number | null,
 
     /** Validity start date for this institution information. May be undefined if it is always valid */
-    validityFrom?: Date,
+    validityFrom: Date | null,
     /** Validity end date for this institution information. May be undefined if it is always valid */
-    validityTo?: Date,
+    validityTo: Date | null,
 
     /** Contacts. This list may be empty */
-    contacts?: Contact[],
+    contacts: Contact[] | null,
     /** Address(es). Contains one to three addresses, (max) one for each type */
     addresses: Address[],
     /** Email where to send receipts. Undefined if this institution does not accept any 
      *  receipts directly */
-    transmissionEmail?: string,
+    transmissionEmail: string | null,
     /** Certificate(s) to use for encrypting to this IK, if any. One institution may have several
      *  certificates, with overlapping validity dates
      */
-    certificates?: Certificate[],
+    certificates: Certificate[] | null,
+    /** KIM email address when Telematik Infrastruktur is available or "VZD" when TI directory 
+     * should be used */
+    kim: string | null,
     /** Link(s) to Kostenträger (=institutions that pays the receipts). 
      *  The institution with the IK as printed on the health-insurance card is not necessarily the
      *  institution that manages paying the receipts. Usually such things are done by a central 
@@ -77,40 +84,31 @@ export type Institution = {
      *  several different Kostenträger for different regions / health care provider groups etc, 
      *  this is why there can be several links.
      */
-    kostentraegerLinks?: InstitutionLink[],
+    kostentraegerLinks: InstitutionLink[] | null,
     /** Link(s) to Datenannahmestellen (=data acceptance office) that can decrypt the data. 
      *  See comment for kostentraegerLinks */
-    datenannahmestelleLinks?: InstitutionLink[],
+    datenannahmestelleLinks: InstitutionLink[] | null,
     /** Link(s) to Datenannahmestellen (=data acceptance office) that cannot decrypt the data. 
      *  See comment for kostentraegerLinks */
-    untrustedDatenannahmestelleLinks?: InstitutionLink[],
+    untrustedDatenannahmestelleLinks: InstitutionLink[] | null,
     /** Link(s) to Papierannahmestellen (=paper acceptance office) */
-    papierannahmestelleLinks?: PapierannahmestelleLink[]
-}
-
-export enum PaperDataType {
-    Receipt = 1,
-    MachineReadableReceipt = 2,
-    Prescription = 4,
-    CostEstimate = 8,
-}
-
-export type PapierannahmestelleLink = InstitutionLink & {
-    /** What data on paper is accepted. This is a bit field */
-    paperTypes: PaperDataType
+    papierannahmestelleLinks: InstitutionLink[] | null
 }
 
 export type InstitutionLink = {
     /** IK of the linked partner */
     ik: string,
     /** For which location of the care provider the link is valid */
-    location?: KVLocationSchluessel,
+    location: KVLocationSchluessel | null,
+    /** For which type of transmission ("Art der Datenlieferung") the link is valid,
+     *  also implies Übermittlungsmedium (see DatenlieferungsartSchluessel) */
+    transmissionTypes: DatenlieferungsartSchluessel[],
     /** The type of care service provided according to SGB XI. I.e. the link is only valid for that
      *  care service.
      * 
      *  A value of 00 (Sammelschlüssel) means that this link is valid for all care services 
      *  provided, 99 means the link is valid for all services provided that are not listed */
-    sgbxiLeistungsart?: KostentraegerSGBXILeistungsartSchluessel,
+    sgbxiLeistungsart: KostentraegerSGBXILeistungsartSchluessel | null,
     /** A.k.a Leistungserbringerart. The group/kind of health care service provided for health
      *  care services according to SGB V. I.e. the link is only valid for that
      *  care service.
@@ -120,7 +118,7 @@ export type InstitutionLink = {
      *  
      *  A value of 00 (Sammelschlüssel) means that this link is valid for all care services 
      *  provided, 99 means the link is valid for all services provided that are not listed */
-     sgbvAbrechnungscode?: KostentraegerSGBVAbrechnungscodeSchluessel
+    sgbvAbrechnungscode: KostentraegerSGBVAbrechnungscodeSchluessel | null
 }
 
 export const federalStateSchluesselWithoutNRWSchluessel = {
@@ -171,13 +169,13 @@ export type CareProviderLocationSchluessel =
 
 export type Contact = {
     /** Phone number. The dialing code and phone number usually separated with "/" or "-" */
-    phone?: string | undefined,
+    phone: string | null,
     /** Fax number. The dialing code and phone number usually separated with "/" or "-" */
-    fax?: string | undefined,
+    fax: string | null,
     /** Name of the contact. Max. 30 characters */
-    name?: string,
+    name: string | null,
     /** Description of the field of work of the contact. Max. 30 characters */
-    fieldOfWork?: string
+    fieldOfWork: string | null
 }
 
 export type Address = NormalAddress | MajorCustomerAddress | POBoxAddress
@@ -195,8 +193,7 @@ export type POBoxAddress = BasicAddress & {
 }
 
 type BasicAddress = {
-    postcode: number,
+    postcode: string,
     /** max. 25 characters */
     place: string,
-    /** max. 30 characters */
 }

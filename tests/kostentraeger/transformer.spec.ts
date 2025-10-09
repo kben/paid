@@ -1,7 +1,7 @@
 import { Certificate } from "@peculiar/asn1-x509"
 import { KOTRInterchange } from "../../src/kostentraeger/edifact/segments"
 import transform from "../../src/kostentraeger/transformer"
-import { InstitutionList, PaperDataType } from "../../src/kostentraeger/types"
+import { InstitutionList } from "../../src/kostentraeger/types"
 
 
 describe("kostentraeger transformer", () => {
@@ -78,19 +78,19 @@ describe("kostentraeger transformer", () => {
                 ansList: [
                     {
                         anschriftartSchluessel: "1",
-                        postcode: 12345,
+                        postcode: "12345",
                         place: "Humburg",
                         address: "Straßenallee 33"
                     }, 
                     {
                         anschriftartSchluessel: "2",
-                        postcode: 12345,
+                        postcode: "12345",
                         place: "Humburg",
                         address: "123"
                     }, 
                     {
                         anschriftartSchluessel: "3",
-                        postcode: 12345,
+                        postcode: "12345",
                         place: "Humburg"
                     },
                 ],
@@ -156,9 +156,9 @@ describe("kostentraeger transformer", () => {
                 validityTo: new Date("2088-10-10"),
                 vertragskassennummer: 12345,
                 addresses: [
-                    { postcode: 12345, place: "Humburg", streetAndHousenumber: "Straßenallee 33" },
-                    { postcode: 12345, place: "Humburg", poBox: "123" },
-                    { postcode: 12345, place: "Humburg" },
+                    { postcode: "12345", place: "Humburg", streetAndHousenumber: "Straßenallee 33" },
+                    { postcode: "12345", place: "Humburg", poBox: "123" },
+                    { postcode: "12345", place: "Humburg" },
                 ],
                 contacts: [
                     {
@@ -169,31 +169,45 @@ describe("kostentraeger transformer", () => {
                     }
                 ],
                 transmissionEmail: "ok@go.de",
-                certificates: certificatesByIK.get("999999999"),
+                certificates: certificatesByIK.get("999999999") || null,
                 kostentraegerLinks: [{
                     ik: "999999999",
                     location: "HH",
-                    sgbxiLeistungsart: "00"
+                    sgbxiLeistungsart: "00",
+                    transmissionTypes: [],
+                    sgbvAbrechnungscode: null
                 }],
                 datenannahmestelleLinks: [{
-                    ik: "999999999"
+                    ik: "999999999",
+                    transmissionTypes: ["07"],
+                    location: null,
+                    sgbxiLeistungsart: null,
+                    sgbvAbrechnungscode: null
                 }],
                 untrustedDatenannahmestelleLinks: [{
                     ik: "999999999",
                     location: "SH",
-                    sgbxiLeistungsart: "12"
+                    transmissionTypes: ["07"],
+                    sgbxiLeistungsart: "12",
+                    sgbvAbrechnungscode: null
                 }],
                 papierannahmestelleLinks: [{
                     ik: "999999999",
                     location: "Nordrhein",
+                    transmissionTypes: ["29"],
                     sgbvAbrechnungscode: "25",
-                    paperTypes: PaperDataType.MachineReadableReceipt | PaperDataType.CostEstimate | PaperDataType.Prescription,
+                    sgbxiLeistungsart: null,
                 }, {
                     ik: "999999999",
+                    transmissionTypes: ["21"],
                     sgbxiLeistungsart: "00",
-                    paperTypes: PaperDataType.Receipt,
-                }]
+                    location: null,
+                    sgbvAbrechnungscode: null,
+                }],
+                validityFrom: null,
+                kim: null
             }],
+            caCertificates: [],
         }
 
         const result = transform(certificatesByIK, interchange)
@@ -335,7 +349,7 @@ describe("kostentraeger transformer", () => {
             }]
         }
 
-        const expectedInstitutionList = {
+        const expectedInstitutionList: InstitutionList = {
             issuerIK: "123456789",
             leistungserbringerGruppeSchluessel: "6",
             kassenart: "AO",
@@ -347,10 +361,24 @@ describe("kostentraeger transformer", () => {
                 addresses: [],
                 papierannahmestelleLinks: [{
                     ik: "999999999",
-                    paperTypes: PaperDataType.Receipt | PaperDataType.MachineReadableReceipt | PaperDataType.CostEstimate | PaperDataType.Prescription
-                }]
+                    transmissionTypes: ["21", "24", "28"],
+                    location: null,
+                    sgbxiLeistungsart: null,
+                    sgbvAbrechnungscode: null,
+                }],
+                vertragskassennummer: null,
+                validityFrom: null,
+                validityTo: null,
+                contacts: null,
+                transmissionEmail: null,
+                certificates: null,
+                kim: null,
+                kostentraegerLinks: null,
+                datenannahmestelleLinks: null,
+                untrustedDatenannahmestelleLinks: null
             }],
-        } as InstitutionList
+            caCertificates: [],
+        }
 
         expect(json(transform(new Map(), interchange).institutionList)).toEqual(json(expectedInstitutionList))
     })

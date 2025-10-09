@@ -1,21 +1,21 @@
 import { groupInvoicesByRecipientSGBXI, validateForTransmissionSGBXI } from "../../src/transmission";
 import { payload2 } from "../samples/billingPayloads";
-import kostentreagerJson from "../../dist/kostentraeger.min.json";
-import { deserializeInstitutionLists } from "../../src/kostentraeger/json_serializer";
+import { institutionLists } from "../samples/institutions";
 import { Invoice } from "../../src/sgb-xi/types";
+import { InstitutionListsIndex } from "../../src/kostentraeger";
 
 describe("transmission", () => {
 
     it("trying to group invoices without finding a recipient", async () => {
-        const { invoicesWithRecipient, recipientNotFound } = groupInvoicesByRecipientSGBXI(payload2.invoices, []);
+        const { invoicesWithRecipient, recipientNotFound } = groupInvoicesByRecipientSGBXI(payload2.invoices, new InstitutionListsIndex([]));
         expect(invoicesWithRecipient).toHaveLength(0);
         expect(recipientNotFound).toHaveLength(2);
     });
 
     it("validate SGB XI invoices and billing data for transmission", async () => {
         const { invoicesWithRecipient, recipientNotFound } = groupInvoicesByRecipientSGBXI(
-            replaceWithRealPflegekasseIK(payload2.invoices),
-            makeInstitutionLists()
+            replaceWithRealKrankenkasseIK(payload2.invoices),
+            new InstitutionListsIndex(institutionLists)
         );
         expect(invoicesWithRecipient).toHaveLength(2);
         expect(recipientNotFound).toHaveLength(0);
@@ -47,16 +47,14 @@ describe("transmission", () => {
 
 });
 
-const replaceWithRealPflegekasseIK = (invoices: Invoice[]) => {
-    const pflegekasseIKs = ["105067999", "102314376", "102114261"];
+const replaceWithRealKrankenkasseIK = (invoices: Invoice[]) => {
+    const krankenkasseIKs = ["185830016", "182114819", "182114819"];
     const updatedInvoices = invoices.slice();
     let index = 0;
     updatedInvoices.forEach(invoice =>
         invoice.faelle.forEach(fall =>
-            fall.versicherter.pflegekasseIK = pflegekasseIKs[index++ % pflegekasseIKs.length]
+            fall.versicherter.krankenkasseIK = krankenkasseIKs[index++ % krankenkasseIKs.length]
         )
     );
     return updatedInvoices;
 }
-
-const makeInstitutionLists = () => deserializeInstitutionLists(JSON.stringify(kostentreagerJson));

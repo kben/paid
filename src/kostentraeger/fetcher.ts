@@ -11,7 +11,7 @@ const kostentraegerRssUrls = [
     "https://gkv-datenaustausch.de/leistungserbringer/sonstige_leistungserbringer/kostentraegerdateien_sle/rss_kostentraegerdateien_sonstige_leistungserbringer.xml"
 ]
 
-type FetchMethodType = (input: RequestInfo, init?: RequestInit | undefined) => Promise<Response>;
+type FetchMethodType = (input: any, init?: RequestInit | undefined) => Promise<Response>;
 
 /* Currently (2021-05), there are two lists, the other being
    https://trustcenter-data.itsg.de/dale/annahme-sha256.key 

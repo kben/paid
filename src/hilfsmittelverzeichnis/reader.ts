@@ -1,4 +1,4 @@
-import { DOMParser } from "@xmldom/xmldom"
+import { DOMParser, Element, Document } from "@xmldom/xmldom"
 import { 
     HilfsmittelBodyPart,
     HilfsmittelGroup,
@@ -16,7 +16,7 @@ import {
  *  Does not read all the long explanatory texts but basically just the names and ids
  */
 export default function readHilfsmittelverzeichnis(xmlText: string): Hilfsmittelverzeichnis {
-    const dom = new DOMParser().parseFromString(xmlText, "text/xml") as XMLDocument
+    const dom = new DOMParser().parseFromString(xmlText, "text/xml")
     return {
         groups: readList(dom, "hv:HMV_GRUPPE", readGroup),
         bodyParts: readList(dom, "hv:HMV_ORT", readBodyPart),
@@ -99,7 +99,7 @@ function readProduct(e: Element) : HilfsmittelProduct | undefined {
     }
 }
 
-function readList<T>(dom: XMLDocument, name: string, readOne: (e: Element) => T | undefined): T[] {
+function readList<T>(dom: Document, name: string, readOne: (e: Element) => T | undefined): T[] {
     const result: T[] = []
 
     const list = dom.getElementsByTagName(name)

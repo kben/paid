@@ -7,13 +7,16 @@ import {
 import { 
     CareProviderLocationSchluessel,
     Institution,
+    InstitutionLink,
     InstitutionList,
-    PaperDataType
 } from "../../src/kostentraeger/types"
 import { base64ToArrayBuffer } from "../../src/pki/utils"
 import { AsnParser } from "@peculiar/asn1-schema"
 import { Certificate, Time } from "@peculiar/asn1-x509"
 import { exampleKostentraegerCertificatePEM } from "../samples/certificates"
+import { readFileSync } from "fs"
+import { deserializeInstitutionLists } from "../../src/kostentraeger/json_serializer"
+import { DatenlieferungsartSchluessel, sgbxiLeistungsartSonderschluessel } from "../../src/kostentraeger/edifact/codes"
 
 describe("Kostenträger index", () => {
 
@@ -38,12 +41,14 @@ describe("Kostenträger index", () => {
         } as Institution
 
         expect(findForData([institutionListOf([kasse])], "00000001")).toEqual({
-            pflegekasse: kasse,
+            krankenkasse: kasse,
             kostentraeger: kasse,
             encryptTo: kasse,
             certificate: defaultCertificate,
             sendTo: kasse,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
     })
 
@@ -53,16 +58,18 @@ describe("Kostenträger index", () => {
             ...acceptsData,
             ...linksPapierAndDatenannahmeTo("00000001"),
             ik: "00000001",
-            kostentraegerLinks: [{ ik: "00000001" }],
+            kostentraegerLinks: [createLink("00000001")],
         } as Institution
 
         expect(findForData([institutionListOf([kasse])], "00000001")).toEqual({
-            pflegekasse: kasse,
+            krankenkasse: kasse,
             kostentraeger: kasse,
             encryptTo: kasse,
             certificate: defaultCertificate,
             sendTo: kasse,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
     })
 
@@ -70,13 +77,13 @@ describe("Kostenträger index", () => {
         const kasse1 = { 
             ...base, 
             ik: "00000001",
-            kostentraegerLinks: [{ ik: "00000002" }],
+            kostentraegerLinks: [createLink("00000002")],
         } as Institution
 
         const kasse2 = { 
             ...base, 
             ik: "00000002",
-            kostentraegerLinks: [{ ik: "00000003" }],
+            kostentraegerLinks: [createLink("00000003")],
         } as Institution
 
         const kasse3 = { 
@@ -87,12 +94,14 @@ describe("Kostenträger index", () => {
         } as Institution
 
         expect(findForData([institutionListOf([kasse1, kasse2, kasse3])], "00000001")).toEqual({
-            pflegekasse: kasse1,
+            krankenkasse: kasse1,
             kostentraeger: kasse3,
             encryptTo: kasse3,
             certificate: defaultCertificate,
             sendTo: kasse3,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
     })
 
@@ -100,7 +109,7 @@ describe("Kostenträger index", () => {
         const kasse1 = { 
             ...base, 
             ik: "00000001",
-            kostentraegerLinks: [{ ik: "00000002" }],
+            kostentraegerLinks: [createLink("00000002")],
         } as Institution
 
         const kasse2 = { 
@@ -108,92 +117,100 @@ describe("Kostenträger index", () => {
             ...acceptsData,
             ...linksPapierAndDatenannahmeTo("00000002"),
             ik: "00000002",
-            kostentraegerLinks: [{ ik: "00000001" }],
+            kostentraegerLinks: [createLink("00000001")],
         } as Institution
 
         expect(findForData([institutionListOf([kasse1, kasse2])], "00000001")).toEqual({
-            pflegekasse: kasse1,
+            krankenkasse: kasse1,
             kostentraeger: kasse2,
             encryptTo: kasse2,
             certificate: defaultCertificate,
             sendTo: kasse2,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
     })
 
     it("finds kostenträger with different datenannahmestelle", () => {
-        const pflegekasse = { 
+        const krankenkasse: Institution = { 
             ...base, 
             ik: "00000001",
             kostentraegerLinks: [{
-                ik: "00000002"
+                ik: "00000002",
+                location: null,
+                transmissionTypes: [],
+                sgbxiLeistungsart: null,
+                sgbvAbrechnungscode: null
             }]
         }
-        const kostentraeger = {
+        const kostentraeger: Institution = {
             ...base, 
             ik: "00000002",
             datenannahmestelleLinks: [{
-                ik: "00000003"
+                ik: "00000003",
+                location: null,
+                transmissionTypes: [],
+                sgbxiLeistungsart: null,
+                sgbvAbrechnungscode: null
             }]
         }
-        const datenannahmestelle = {
+        const datenannahmestelle: Institution = {
             ...base, 
             ik: "00000003",
             transmissionEmail: "default@default.de",
             ...usesDefaultCertificate
-        } as Institution
+        }
 
-        expect(findForData([institutionListOf([pflegekasse, kostentraeger, datenannahmestelle])], "00000001")).toEqual({
-            pflegekasse: pflegekasse,
+        expect(findForData([institutionListOf([krankenkasse, kostentraeger, datenannahmestelle])], "00000001")).toEqual({
+            krankenkasse: krankenkasse,
             kostentraeger: kostentraeger,
             encryptTo: datenannahmestelle,
             certificate: defaultCertificate,
             sendTo: datenannahmestelle,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
     })
 
     it("finds kostenträger with different datenannahmestelle and different place to send to", () => {
-        const pflegekasse = { 
+        const krankenkasse: Institution = { 
             ...base, 
             ik: "00000001",
-            kostentraegerLinks: [{
-                ik: "00000002"
-            }]
-        } as Institution
-        const kostentraeger = {
+            kostentraegerLinks: [createLink("00000002")]
+        }
+        const kostentraeger: Institution = {
             ...base, 
             ik: "00000002",
-            datenannahmestelleLinks: [{
-                ik: "00000003"
-            }]
-        } as Institution
-        const trustedDatenannahmestelle = {
+            datenannahmestelleLinks: [createLink("00000003")]
+        }
+        const trustedDatenannahmestelle: Institution = {
             ...base, 
             ik: "00000003",
-            untrustedDatenannahmestelleLinks: [{
-                ik: "00000004"
-            }],
+            untrustedDatenannahmestelleLinks: [createLink("00000004")],
             ...usesDefaultCertificate
-        } as Institution
-        const untrustedDatenannahmestelle = {
+        }
+        const untrustedDatenannahmestelle: Institution = {
             ...base, 
             ik: "00000004",
             transmissionEmail: "default@default.de",
-        } as Institution
+        }
 
         expect(findForData([institutionListOf([
-            pflegekasse,
+            krankenkasse,
             kostentraeger,
             trustedDatenannahmestelle,
             untrustedDatenannahmestelle
         ])], "00000001")).toEqual({
-            pflegekasse: pflegekasse,
+            krankenkasse: krankenkasse,
             kostentraeger: kostentraeger,
             encryptTo: trustedDatenannahmestelle,
             certificate: defaultCertificate,
             sendTo: untrustedDatenannahmestelle,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
     })
 
@@ -230,7 +247,7 @@ describe("Kostenträger index", () => {
             }], 
             defaultIK,
             { date: new Date() }
-        )?.pflegekasse?.name).toEqual("new name")
+        )?.krankenkasse?.name).toEqual("new name")
     })
 
     it("excludes single institutions that are not valid", () => {
@@ -255,7 +272,13 @@ describe("Kostenträger index", () => {
                 { 
                     ...base, 
                     ik: "00000001",
-                    kostentraegerLinks: [{ ik: "00000002" }]
+                    kostentraegerLinks: [{
+                        ik: "00000002",
+                        location: null,
+                        transmissionTypes: [],
+                        sgbxiLeistungsart: null,
+                        sgbvAbrechnungscode: null
+                    }]
                 }, {
                     ...base, 
                     ...acceptsData,
@@ -276,7 +299,7 @@ describe("Kostenträger index", () => {
                     ...base, 
                     ik: "00000001",
                     ...linksPapierAndDatenannahmeTo("00000002"),
-                }, {
+                } as Institution, {
                     ...base, 
                     ...acceptsData,
                     ik: "00000002",
@@ -295,13 +318,10 @@ describe("Kostenträger index", () => {
         const kasse = { 
             ...base, 
             ik: "00000001",
-            kostentraegerLinks: [{ 
-                ik: "00000002",
-                location: "HH"
-            },{ 
-                ik: "00000003",
-                location: "SH"
-            }],
+            kostentraegerLinks: [
+                createLink("00000002", { location: "HH"}), 
+                createLink("00000003", { location: "SH"})
+            ],
         } as Institution
 
         const kostentraeger2 = {
@@ -323,21 +343,25 @@ describe("Kostenträger index", () => {
         expect(findForData(institutionLists, "00000001",{ location: "SL" })).toEqual(undefined)
 
         expect(findForData(institutionLists, "00000001",{ location: "HH" })).toEqual({
-            pflegekasse: kasse,
+            krankenkasse: kasse,
             kostentraeger: kostentraeger2,
             encryptTo: kostentraeger2,
             certificate: defaultCertificate,
             sendTo: kostentraeger2,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
 
         expect(findForData(institutionLists, "00000001",{ location: "SH" })).toEqual({
-            pflegekasse: kasse,
+            krankenkasse: kasse,
             kostentraeger: kostentraeger3,
             encryptTo: kostentraeger3,
             certificate: defaultCertificate,
             sendTo: kostentraeger3,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
     })
 
@@ -345,10 +369,7 @@ describe("Kostenträger index", () => {
         const kasse = { 
             ...base, 
             ik: "00000001",
-            kostentraegerLinks: [{ 
-                ik: "00000002",
-                location: "NW"
-            }],
+            kostentraegerLinks: [createLink("00000002", { location: "NW"})],
         } as Institution
 
         const kostentraeger = {
@@ -363,172 +384,203 @@ describe("Kostenträger index", () => {
         expect(findForData(institutionLists, "00000001",{ location: "HH" })).toEqual(undefined)
 
         expect(findForData(institutionLists, "00000001",{ location: "Westfalen-Lippe" })).toEqual({
-            pflegekasse: kasse,
+            krankenkasse: kasse,
             kostentraeger: kostentraeger,
             encryptTo: kostentraeger,
             certificate: defaultCertificate,
             sendTo: kostentraeger,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
     })
 
     it("heeds the sgbxiLeistungsart", () => {
-        const kasse = { 
+        const kasse: Institution = { 
             ...base, 
             ik: "00000001",
-            kostentraegerLinks: [{ 
+            kostentraegerLinks: [{
                 ik: "00000002",
-                sgbxiLeistungsart: "05"
-            },{ 
+                sgbxiLeistungsart: "05",
+                location: null,
+                transmissionTypes: [],
+                sgbvAbrechnungscode: null,
+            },{
                 ik: "00000003",
-                sgbxiLeistungsart: "99"         // <- = "Rest"
+                sgbxiLeistungsart: "99", // <- = "Rest"
+                location: null,
+                transmissionTypes: [],
+                sgbvAbrechnungscode: null,
             }],
-        } as Institution
+        }
 
-        const kostentraeger2 = {
+        const kostentraeger2: Institution = {
             ...base, 
             ...acceptsData,
             ...linksPapierAndDatenannahmeTo("00000002"),
             ik: "00000002"
-        } as Institution
+        }
 
-        const kostentraeger3 = {
+        const kostentraeger3: Institution = {
             ...base, 
             ...acceptsData,
             ...linksPapierAndDatenannahmeTo("00000003"),
             ik: "00000003"
-        } as Institution
+        }
 
         const institutionLists = [institutionListOf([kasse, kostentraeger2, kostentraeger3])]
 
         expect(findForData(institutionLists, "00000001", { leistungsart: { sgbxiLeistungsart: "05" }})).toEqual({
-            pflegekasse: kasse,
+            krankenkasse: kasse,
             kostentraeger: kostentraeger2,
             encryptTo: kostentraeger2,
             certificate: defaultCertificate,
             sendTo: kostentraeger2,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
 
         expect(findForData(institutionLists, "00000001",{ leistungsart: { sgbxiLeistungsart: "08" } })).toEqual({
-            pflegekasse: kasse,
+            krankenkasse: kasse,
             kostentraeger: kostentraeger3,
             encryptTo: kostentraeger3,
             certificate: defaultCertificate,
             sendTo: kostentraeger3,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
     })
 
     it("heeds the sgbvLeistungsart", () => {
-        const kasse = { 
+        const kasse: Institution = { 
             ...base, 
             ik: "00000001",
-            kostentraegerLinks: [{ 
+            kostentraegerLinks: [{
                 ik: "00000002",
-                sgbvAbrechnungscode: "31"
-            },{ 
+                sgbvAbrechnungscode: "31",
+                location: null,
+                transmissionTypes: [],
+                sgbxiLeistungsart: null
+            },{
                 ik: "00000003",
-                sgbvAbrechnungscode: "99"         // <- = "Rest"
+                sgbvAbrechnungscode: "99", // <- = "Rest"
+                location: null,
+                transmissionTypes: [],
+                sgbxiLeistungsart: null
             }],
-        } as Institution
+        }
 
-        const kostentraeger2 = {
+        const kostentraeger2: Institution = {
             ...base, 
             ...acceptsData,
             ...linksPapierAndDatenannahmeTo("00000002"),
             ik: "00000002"
-        } as Institution
+        }
 
-        const kostentraeger3 = {
+        const kostentraeger3: Institution = {
             ...base, 
             ...acceptsData,
             ...linksPapierAndDatenannahmeTo("00000003"),
             ik: "00000003"
-        } as Institution
+        }
 
-        const institutionLists = [{
+        const institutionLists: InstitutionList[] = [{
             ...institutionListOf([kasse, kostentraeger2, kostentraeger3]),
             leistungserbringerGruppeSchluessel: "5"
-        }] as InstitutionList[]
+        }]
 
         expect(findForData(institutionLists, "00000001", { leistungsart: { sgbvAbrechnungscode: "31" }})).toEqual({
-            pflegekasse: kasse,
+            krankenkasse: kasse,
             kostentraeger: kostentraeger2,
             encryptTo: kostentraeger2,
             certificate: defaultCertificate,
             sendTo: kostentraeger2,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
 
         expect(findForData(institutionLists, "00000001",{ leistungsart: { sgbvAbrechnungscode: "60" } })).toEqual({
-            pflegekasse: kasse,
+            krankenkasse: kasse,
             kostentraeger: kostentraeger3,
             encryptTo: kostentraeger3,
             certificate: defaultCertificate,
             sendTo: kostentraeger3,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
     })
 
     it("heeds the grouped sgbvLeistungsart", () => {
-        const kasse = { 
+        const kasse: Institution = { 
             ...base, 
             ik: "00000001",
-            kostentraegerLinks: [{ 
+            kostentraegerLinks: [{
                 ik: "00000002",
-                sgbvAbrechnungscode: "30"
+                sgbvAbrechnungscode: "30",
+                location: null,
+                transmissionTypes: [],
+                sgbxiLeistungsart: null
             }],
-        } as Institution
+        }
 
-        const kostentraeger = {
+        const kostentraeger: Institution = {
             ...base, 
             ...acceptsData,
             ...linksPapierAndDatenannahmeTo("00000002"),
             ik: "00000002"
-        } as Institution
+        }
 
-        const institutionLists = [{
+        const institutionLists: InstitutionList[] = [{
             ...institutionListOf([kasse, kostentraeger]),
             leistungserbringerGruppeSchluessel: "5"
-        }] as InstitutionList[]
+        }]
 
         expect(findForData(institutionLists, "00000001", { leistungsart: { sgbvAbrechnungscode: "31" }})).toEqual({
-            pflegekasse: kasse,
+            krankenkasse: kasse,
             kostentraeger: kostentraeger,
             encryptTo: kostentraeger,
             certificate: defaultCertificate,
             sendTo: kostentraeger,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
         expect(findForData(institutionLists, "00000001", { leistungsart: { sgbvAbrechnungscode: "32" }})).toEqual({
-            pflegekasse: kasse,
+            krankenkasse: kasse,
             kostentraeger: kostentraeger,
             encryptTo: kostentraeger,
             certificate: defaultCertificate,
             sendTo: kostentraeger,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
         expect(findForData(institutionLists, "00000001", { leistungsart: { sgbvAbrechnungscode: "41" }})).toEqual(undefined)
     })
 
     it("heeds both the location and leistungsart", () => {
-        const kasse = { 
+        const kasse: Institution = { 
             ...base, 
             ik: "00000001",
-            kostentraegerLinks: [{ 
+            kostentraegerLinks: [{
                 ik: "00000002",
                 location: "HH",
-                sgbxiLeistungsart: "05"
+                sgbxiLeistungsart: "05",
+                transmissionTypes: [],
+                sgbvAbrechnungscode: null
             }],
-        } as Institution
+        }
 
-        const kostentraeger = {
+        const kostentraeger: Institution = {
             ...base, 
             ...acceptsData,
             ...linksPapierAndDatenannahmeTo("00000002"),
-            ik: "00000002"
-        } as Institution
+            ik: "00000002",
+        }
 
         const institutionLists = [institutionListOf([kasse, kostentraeger])]
 
@@ -549,12 +601,14 @@ describe("Kostenträger index", () => {
             "00000001",
             { location: "HH", leistungsart: { sgbxiLeistungsart: "05"} }
         )).toEqual({
-            pflegekasse: kasse,
+            krankenkasse: kasse,
             kostentraeger: kostentraeger,
             encryptTo: kostentraeger,
             certificate: defaultCertificate,
             sendTo: kostentraeger,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
     })
 
@@ -562,14 +616,10 @@ describe("Kostenträger index", () => {
         const kasse = { 
             ...base, 
             ik: "00000001",
-            kostentraegerLinks: [{ 
-                ik: "00000002",
-                location: "HH"
-            },
-            { 
-                ik: "00000003"
-            }
-        ],
+            kostentraegerLinks: [
+                createLink("00000002", { location: "HH"}),
+                createLink("00000003"),
+            ],
         } as Institution
 
         const kostentraeger2 = {
@@ -591,12 +641,14 @@ describe("Kostenträger index", () => {
             "00000001",
             { location: "HH" }
         )).toEqual({
-            pflegekasse: kasse,
+            krankenkasse: kasse,
             kostentraeger: kostentraeger2,
             encryptTo: kostentraeger2,
             certificate: defaultCertificate,
             sendTo: kostentraeger2,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
 
         // make sure that the previous test didn't just succeed because of the order
@@ -605,12 +657,14 @@ describe("Kostenträger index", () => {
             "00000001",
             { location: "HH" }
         )).toEqual({
-            pflegekasse: kasse,
+            krankenkasse: kasse,
             kostentraeger: kostentraeger2,
             encryptTo: kostentraeger2,
             certificate: defaultCertificate,
             sendTo: kostentraeger2,
-            kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {},
+            kimTo: null,
         })
     })
 
@@ -619,64 +673,54 @@ describe("Kostenträger index", () => {
             ...base, 
             papierannahmestelleLinks: [{
                 ik: "00000001",
-                paperTypes: PaperDataType.MachineReadableReceipt | PaperDataType.Prescription
+                transmissionTypes: ["21"]
+            }, {
+                ik: "00000001",
+                transmissionTypes: ["28"]
             }],
             ik: "00000001"
         } as Institution
         const institutionList = [institutionListOf([kasse])]
 
-        expect(findForPaper(institutionList, "00000001", { paperDataType: PaperDataType.Receipt })).toEqual(undefined)
-        expect(findForPaper(institutionList, "00000001", { paperDataType: PaperDataType.CostEstimate })).toEqual(undefined)
-
-        expect(findForPaper(institutionList, "00000001", { paperDataType: PaperDataType.MachineReadableReceipt })).toEqual({
-            pflegekasse: kasse,
+        expect(findForPaper(institutionList, "00000001")).toEqual({
+            krankenkasse: kasse,
             kostentraeger: kasse,
-            sendTo: kasse,
-                  kassenart: "AO"
-        })
-        expect(findForPaper(institutionList, "00000001", { paperDataType: PaperDataType.Prescription })).toEqual({
-            pflegekasse: kasse,
-            kostentraeger: kasse,
-            sendTo: kasse,
-                  kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {
+                "21": kasse,
+                "28": kasse,
+            }
         })
 
         const kasse2 = { 
-            ...base, 
+            ...base,
             papierannahmestelleLinks: [{
                 ik: "00000001",
-                paperTypes: PaperDataType.Receipt | PaperDataType.CostEstimate
+                transmissionTypes: ["28"]
             }],
             ik: "00000001"
         } as Institution
 
         const institutionList2 = [institutionListOf([kasse2])]
 
-        expect(findForPaper(institutionList2, "00000001", { paperDataType: PaperDataType.MachineReadableReceipt })).toEqual(undefined)
-        expect(findForPaper(institutionList2, "00000001", { paperDataType: PaperDataType.Prescription })).toEqual(undefined)
-
-        expect(findForPaper(institutionList2, "00000001", { paperDataType: PaperDataType.Receipt })).toEqual({
-            pflegekasse: kasse2,
+        expect(findForPaper(institutionList2, "00000001")).toEqual({
+            krankenkasse: kasse2,
             kostentraeger: kasse2,
-            sendTo: kasse2,
-                  kassenart: "AO"
-        })
-        expect(findForPaper(institutionList2, "00000001", { paperDataType: PaperDataType.CostEstimate })).toEqual({
-            pflegekasse: kasse2,
-            kostentraeger: kasse2,
-            sendTo: kasse2,
-                  kassenart: "AO"
+            kassenart: "AO",
+            papierannahmestellen: {
+                "28": kasse2,
+            }
         })
     })
 
     it("excludes results for datenannahmestelle without certificate", () => {
-        const kasse = { 
+        const kasse: Institution = { 
             ...base, 
             ...acceptsData,
             ...linksPapierAndDatenannahmeTo("00000001"),
             ik: "00000001",
             certificates: []
-        } as Institution
+        }
 
         expect(findForData([institutionListOf([kasse])], "00000001")).toBeUndefined()
     })
@@ -716,17 +760,54 @@ describe("Kostenträger index", () => {
             ik: "00000001"
         } as Institution
 
-        expect(
-            AsnParser.parse(
-                findForData(
-                    [institutionListOf([kasse])], 
-                    "00000001", {
-                        date: new Date("2011-01-01"),
-                    }
-                )!.certificate,
-                Certificate
-            )
-        ).toEqual(newCertificate)
+        const certificate = findForData(
+                [institutionListOf([kasse])],
+                "00000001", {
+                date: new Date("2011-01-01"),
+            })!.certificate
+
+        expect(certificate).not.toBeUndefined();
+        expect(AsnParser.parse(certificate!, Certificate)).toEqual(newCertificate)
+    })
+
+    it("finds kostentraeger for LE-Gruppe 6 (SGB XI) if krankenkasse IK is not in institution list, but the same IK except starting with 18… instead of 10…", () => {
+        const kasse = {
+            ...base,
+            ...acceptsData,
+            ...linksPapierAndDatenannahmeTo("184212505"),
+            ik: "184212505",
+            kostentraegerLinks: [createLink("184212505")],
+        } as Institution
+
+        const result = findForData(
+            [institutionListOf([kasse])],
+            "104212505"
+        ) || null;
+        expect(result).not.toBeNull();
+        expect(result?.krankenkasse.ik).toEqual("184212505");
+    })
+
+    it("finds KIM recipient", () => {
+        const kasse1: Institution = {
+            ...base,
+            kostentraegerLinks: [createLink("000000001")],
+            datenannahmestelleLinks: [createLink("000000002", { transmissionTypes: ["30"] })],
+            ik: "000000001",
+        }
+        const kasse2: Institution = {
+            ...base,
+            ik: "000000002",
+            kim: "hello@example.kim"
+        }
+
+        const result = findForData(
+            [institutionListOf([kasse1, kasse2])],
+            "000000001",
+            { supportedTransmissionTypes: ["30"] }
+        ) || null;
+        expect(result).not.toBeNull();
+        expect(result?.kostentraeger.ik).toEqual("000000001");
+        expect(result?.kimTo?.ik).toEqual("000000002");
     })
 })
 
@@ -736,7 +817,7 @@ const parseCertificate = (certPEM: string): Certificate =>
 const certificatePEM = exampleKostentraegerCertificatePEM()
 
 const defaultIK: string = "00000000"
-const defaultCertificate = base64ToArrayBuffer(certificatePEM)
+const defaultCertificate = new Uint8Array(base64ToArrayBuffer(certificatePEM))
 const parsedDefaultCertificate = parseCertificate(certificatePEM)
 
 const institutionListOf = (institutions: Institution[]): InstitutionList => ({
@@ -744,7 +825,8 @@ const institutionListOf = (institutions: Institution[]): InstitutionList => ({
     leistungserbringerGruppeSchluessel: "6",
     kassenart: "AO",
     validityStartDate: new Date("2000-01-01"),
-    institutions: institutions
+    institutions,
+    caCertificates: [],
 })
 
 /* Default institution with just the necessary info */
@@ -754,24 +836,34 @@ const base: Institution = {
     abbreviatedName: "default abbr. name",
     contacts: [],
     addresses: [{
-        postcode: 0,
+        postcode: "00000",
         place: "default place"
     }],
     kostentraegerLinks: [],
     datenannahmestelleLinks: [],
     untrustedDatenannahmestelleLinks: [],
-    papierannahmestelleLinks: []
+    papierannahmestelleLinks: [],
+    vertragskassennummer: null,
+    validityFrom: null,
+    validityTo: null,
+    transmissionEmail: null,
+    certificates: null,
+    kim: null
 }
 
 /* Merge with base to get an institution that links to itself for data and paper acceptance */
 const linksPapierAndDatenannahmeTo = (ik: string) => ({
-    datenannahmestelleLinks: [{
-        ik: ik
-    }],
-    papierannahmestelleLinks: [{
-        ik: ik,
-        paperTypes: PaperDataType.CostEstimate | PaperDataType.MachineReadableReceipt | PaperDataType.Prescription | PaperDataType.Receipt
-    }]
+    datenannahmestelleLinks: [createLink(ik)],
+    papierannahmestelleLinks: [createLink(ik)]
+})
+
+const createLink = (ik: string, data: Partial<InstitutionLink> = {}): InstitutionLink => ({
+    ik,
+    location: null,
+    transmissionTypes: [],
+    sgbxiLeistungsart: null,
+    sgbvAbrechnungscode: null,
+    ...data,
 })
 
 const usesDefaultCertificate = {
@@ -786,37 +878,37 @@ const acceptsData = {
 const simple = { ...base, ...acceptsData, ...linksPapierAndDatenannahmeTo(defaultIK) } as Institution
 
 type OptFindParams = {
-    paperDataType?: PaperDataType
     leistungsart?: Leistungsart,
     location?: CareProviderLocationSchluessel,
+    supportedTransmissionTypes?: DatenlieferungsartSchluessel[],
     date?: Date
 }
 
 function findForPaper(
     institutionLists: InstitutionList[],
-    pflegekasseIK: string,
+    krankenkasseIK: string,
     {
-        paperDataType = 1,
         leistungsart = { sgbxiLeistungsart: "01" },
         location = "HH",
         date = new Date()
     }: OptFindParams = {}
 ): KostentraegerForPaperFindResult | undefined {
     return new InstitutionListsIndex(institutionLists).findForPaper(
-        paperDataType, pflegekasseIK, leistungsart, location, date
+        krankenkasseIK, leistungsart, location, date
     )
 }
 
 function findForData(
     institutionLists: InstitutionList[],
-    pflegekasseIK: string,
+    krankenkasseIK: string,
     {
         leistungsart = { sgbxiLeistungsart: "01" },
         location = "HH",
+        supportedTransmissionTypes = ["07"],
         date = new Date()
     }: OptFindParams = {}
 ): KostentraegerForDataFindResult | undefined {
     return new InstitutionListsIndex(institutionLists).findForData(
-        pflegekasseIK, leistungsart, location, date
+        krankenkasseIK, leistungsart, location, supportedTransmissionTypes, date
     )
 }

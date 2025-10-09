@@ -282,6 +282,11 @@ const transliterate = (text: string, characterTable: Record<string, number>) =>
 const isConformingToCharacterSet = (text: string, characterTable: Record<string, number>) =>
     ![...text].some(char => characterTable[char] == undefined);
 
+const getNonConformingCharacters = (text: string, characterTable: Record<string, number>) =>
+    [...text].filter(char => characterTable[char] == undefined);
+
+export const getNonConformingCharactersI8 = (text: string) => getNonConformingCharacters(text, I8);
+
 export const isEncodableI8 = (text: string) => isConformingToCharacterSet(text, I8);
 
 export const encodeI8 = (text: string) => stringToByteArray(text, I8);

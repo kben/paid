@@ -4,20 +4,13 @@ import {
     arrayConstraints, valueConstraints,
     isArray, isChar, isVarchar, isDate, isIK, isInt, isRequired,
     isOptionalChar, isOptionalVarchar,
-    error, isTruncatedIfTooLong, isRechnungsnummer, isOptionalDate, isOptionalInt,
+    error, isTruncatedIfTooLong, isRechnungsnummer, isOptionalInt,
 } from "./validation/utils"
 import { isValidCertificate } from "./pki/validation"
-import { Invoice } from "./sgb-xi/types"
+import { Invoice, Leistungserbringer } from "./sgb-xi/types"
 import { ValidationResult } from "./validation/index"
+import { IncrementalNumberMinLength } from "./utils"
 
-
-export const constraintsIKToSondertarif = (record: Record<string, string>) => 
-    Object.keys(record).flatMap(ik => [
-        // this is a requirement for a key, not a value: Each key must be an IK
-        /\d{9}/.test(ik) ? undefined : error("institutionskennzeichenIncorrect", ik),
-        // and each value must be a three-character string
-        isChar(record, ik, 3)
-    ])
 
 export const constraintsIKToDatenaustauschreferenz = (record: Record<string, string>) => 
     Object.keys(record).flatMap(ik => [
@@ -43,33 +36,48 @@ export const constraintsInstitution = (institution: Institution) => [
     isTruncatedIfTooLong(isVarchar(institution, "email", 70))
 ]
 
-const constraintsAnsprechpartner = (ansprechpartner: Ansprechpartner) => {
-    const phoneNumberLength = ansprechpartner.phone ? ansprechpartner.phone?.length + 2 : 0
+const constraintsAnsprechpartner = (ansprechpartner: Ansprechpartner, index: number, list: Ansprechpartner[]) => {
+    const phoneNumberLength = ansprechpartner.phone ? ansprechpartner.phone?.length : 0
     return [
-        isTruncatedIfTooLong(isOptionalVarchar(ansprechpartner, "phone", 30)),
-        // how much space there is left for the name depends on the length of the phone number, if any
-        isTruncatedIfTooLong(isVarchar(ansprechpartner, "name", 30 - phoneNumberLength))
+        isVarchar(ansprechpartner, "name", 30),
+        isOptionalVarchar(ansprechpartner, "phone", 30),
+        /* how much space there is left for the name depends on the length of the phone number, if any, 
+           and the number of free remaining ansprechpartner slots (max. 4)*/
+        list.length >= 4 - index
+            ? isTruncatedIfTooLong(isVarchar(ansprechpartner, "name", 30 - phoneNumberLength - 2))
+            : undefined
     ]
 }
 
 export const constraintsVersicherter = (versicherter: Versicherter, requiresVersichertenStatus: boolean) => [
-    isIK(versicherter, "pflegekasseIK"),
-    // the visible immutable part of versichertennummer are always 10 characters long
-    isOptionalChar(versicherter, "versichertennummer", 10),
-    // no constraints for optional versichertenstatus (should be (up to) 5 digits though)
     isTruncatedIfTooLong(isVarchar(versicherter, "firstName", 30)), // 45 for SGB XI 
     isTruncatedIfTooLong(isVarchar(versicherter, "lastName", 45)), // 47 for SGB V
     isDate(versicherter, "birthday"),
-    /* If versichertennummer (plus versichertenstatus for SGB V) is not specified, 
-       address is mandatory and every field in address is mandatory (except country).
-       As SGB XI is not based on Verordnungen, the versichertenstatus is likely unknown and 
-       a full address is only mandatory if versichertennummer is unknown in this case.  */
-    ...(!versicherter.versichertennummer || (requiresVersichertenStatus && !versicherter.versichertenstatus) ? [
-        isRequired(versicherter, "address"),
-        ...valueConstraints<Address>(versicherter, "address", constraintsWhenAddressIsMandatory),
-    ] : []
-),
-    // otherwise, if specified, the fields in address must just be not too long
+    isIK(versicherter, "krankenkasseIK"),
+    /* versichertennummer is either required or if not specified, address is required */
+    ...(!versicherter.versichertennummer
+        ? [
+            // the visible immutable part of versichertennummer is always 10 characters long
+            isChar(versicherter, "versichertennummer", 10),
+            isRequired(versicherter, "address"),
+            ...valueConstraints<Address>(versicherter, "address", constraintsWhenAddressIsMandatory),
+        ] 
+        : [
+            // the visible immutable part of versichertennummer is always 10 characters long
+            isOptionalChar(versicherter, "versichertennummer", 10),
+        ]
+    ),
+    // no constraints for optional versichertenstatus (should be (up to) 5 digits though)
+    /* for SGB V versichertenstatus is either required or if not specified, address is required */
+    ...(requiresVersichertenStatus && !versicherter.versichertenstatus
+        ? [
+            isRequired(versicherter, "versichertenstatus"),
+            isRequired(versicherter, "address"),
+            ...valueConstraints<Address>(versicherter, "address", constraintsWhenAddressIsMandatory),
+        ]
+        : []
+    ),
+    // if address is optionally specified, the fields in address must just be not too long
     ...valueConstraints<Address>(versicherter, "address", constraintsAddress),
 ]
 
@@ -99,6 +107,7 @@ export const constraintsRecipient = (recipient: Recipient) => [
     isRequired(recipient, "encryptTo"),
     ...valueConstraints<KostentraegerInstitution>(recipient, "encryptTo", encryptTo => [
         isIK(encryptTo, "ik"),
+        isRequired(recipient, "certificate"),
     ]),
 ];
 
@@ -107,12 +116,14 @@ export const constraintsBillingData = (billing: BillingData) => [
     ...valueConstraints(billing, "datenaustauschreferenzJeEmpfaengerIK", constraintsIKToDatenaustauschreferenz),
     isRequired(billing, "testIndicator"),
     isRequired(billing, "rechnungsart"),
-    isVarchar(billing, "rechnungsnummerprefix", 9),
-    isRechnungsnummer(billing, "rechnungsnummerprefix"),
-    isOptionalDate(billing, "rechnungsdatum"),
+    isOptionalVarchar(billing, "rechnungsnummerprefix", 14 - IncrementalNumberMinLength + 1, 0),
+    ...valueConstraints(billing, "rechnungsnummerprefix", (value?: string) => [isRechnungsnummer(value)]),
+    isOptionalVarchar(billing, "belegnummerprefix", 10 - IncrementalNumberMinLength, 0),
+    ...valueConstraints(billing, "belegnummerprefix", (value?: string) => [isRechnungsnummer(value)]),
+    isInt(billing, "nextRechnungsnummer", 0, Math.pow(10, Math.max(14 - (billing.rechnungsnummerprefix?.length || 0), IncrementalNumberMinLength - 1))),
+    isInt(billing, "nextBelegnummer", 0, Math.pow(10, Math.max(10 - (billing.belegnummerprefix?.length || 0), IncrementalNumberMinLength))),
     isRequired(billing, "senderCertificate"),
     isRequired(billing, "senderPrivateKey"),
-    isDate(billing, "abrechnungsmonat"),
     isOptionalInt(billing, "korrekturlieferung", 0, 10),
     billing.rechnungsart != "1" ? isRequired(billing, "abrechnungsstelle") : undefined,
     ...valueConstraints(billing, "abrechnungsstelle", constraintsInstitution),
@@ -143,3 +154,21 @@ export const constraintsForTransmission = async (
         ]),
     ];
 };
+
+export const constraintsLeistungserbringer = (leistungserbringer: Leistungserbringer) => [
+    ...constraintsInstitution(leistungserbringer),
+    isRequired(leistungserbringer, "postalAddress"),
+    ...valueConstraints<Leistungserbringer["postalAddress"]>(leistungserbringer, "postalAddress", constraintsPostalAddress),
+    isRequired(leistungserbringer, "abrechnungscode"),
+    isRequired(leistungserbringer, "tarifbereich"),
+    isRequired(leistungserbringer, "location"),
+    leistungserbringer.umsatzsteuerBefreiung != "01" 
+        ? isVarchar(leistungserbringer, "umsatzsteuerOrdnungsnummer", 20) 
+        : undefined,
+];
+
+const constraintsPostalAddress = (address: Leistungserbringer["postalAddress"]) => [
+    isVarchar(address, "street1"),
+    isVarchar(address, "postalCode"),
+    isVarchar(address, "city"),
+];

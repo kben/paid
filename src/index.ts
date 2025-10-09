@@ -2,7 +2,13 @@ export type {
     BillingData,
     Versicherter,
     File as PaidFile,
+    Ansprechpartner,
+    Transmission,
+    Recipient,
+    InvoicesWithRecipient,
+    ResultOrErrors,
 } from "./types";
+export { testIndicator } from "./types";
 export type {
     Invoice,
     Leistungserbringer,
@@ -25,7 +31,8 @@ export type {
     ZeitartSchluessel,
     PflegesatzSchluessel,
     WegegebuehrenSchluessel,
-    BeratungsbesuchPauschaleLeistungSchluessel,
+    EntlastungsleistungSchluessel,
+    BeratungsbesuchSchluessel,
     SonstigeLeistungSchluessel,
     PflegehilfsmittelSchluessel,
     MehrwertsteuerSchluessel,
@@ -48,7 +55,8 @@ export {
     zeitartSchluessel,
     pflegesatzSchluessel,
     wegegebuehrenSchluessel,
-    beratungsbesuchPauschaleLeistungSchluessel,
+    entlastungsleistungSchluessel,
+    beratungsbesuchSchluessel,
     sonstigeLeistungSchluessel,
     pflegehilfsmittelSchluessel,
     mehrwertsteuerSchluessel,
@@ -73,10 +81,12 @@ export {
     tarifbereichSchluessel as tarifbereichSchluesselSGBV,
 } from "./sgb-v/codes";
 
-export type { KassenartSchluessel } from "./kostentraeger/filename/codes";
+export type { KassenartSchluessel, KassenartShortSchluessel } from "./kostentraeger/filename/codes";
+export { kassenartSchluessel, kassenartShortSchluessel } from "./kostentraeger/filename/codes";
 export type {
     LeistungserbringergruppeSchluessel,
     UebermittlungszeichensatzSchluessel,
+    DatenlieferungsartSchluessel,
 } from "./kostentraeger/edifact/codes";
 export type {
     InstitutionListFileParseResult,
@@ -84,9 +94,9 @@ export type {
     Institution,
     Contact,
     Address,
+    NormalAddress,
+    POBoxAddress,
     InstitutionLink,
-    PapierannahmestelleLink,
-    PaperDataType,
     KVLocationSchluessel,
     CareProviderLocationSchluessel,
 } from "./kostentraeger/types";
@@ -94,20 +104,52 @@ export { careProviderLocationSchluessel } from "./kostentraeger/types";
 import fetchInstitutionLists from "./kostentraeger/fetcher";
 export { fetchInstitutionLists };
 export * from "./kostentraeger/json_serializer";
-export { InstitutionListsIndex } from "./kostentraeger";
+export type {
+    KostentraegerForDataFindResult,
+    KostentraegerForPaperFindResult
+} from "./kostentraeger/index";
+export { InstitutionListsIndex } from "./kostentraeger/index";
 
 export { 
     createCertificationRequest, 
+    getCertificatesFromP7C,
     getNewCertificateFromP7C, 
     createSelfSignedP7C
 } from "./pki/pkcs";
-export { bufferToCertificate, bufferToCertificationRequest } from "./pki/utils";
+export { bufferToCertificate, bufferToCertificationRequest, certificateToBuffer, arrayBufferEquals } from "./pki/utils";
 export { isValidCertificate } from "./pki/validation";
-export { transliterateCertificateName } from "./transcoding";
+export { transliterateCertificateName } from "./transcoding/index";
 
+export { 
+    groupInvoicesByRecipientSGBXI, 
+    createTransmissionSGBXI,
+    validateVersicherter,
+    validateLeistungserbringer
+} from "./transmission/index";
+export { formattedDateForEmail } from "./transmission/email"
+
+export { 
+    groupBy, 
+    valuesGroupedBy, 
+    entriesGroupedBy, 
+    entriesGroupedByAnyKey, 
+    incrementalNumber, 
+    IncrementalNumberMinLength
+} from "./utils";
+
+export type {
+    ValidationError,
+    ValidationCode,
+} from "./validation/index";
+export {
+    validate,
+    ValidationResultType,
+} from "./validation/index";
 
 export type {
     Hilfsmittelverzeichnis
 } from "./hilfsmittelverzeichnis/types";
 import readHilfsmittelverzeichnis from "./hilfsmittelverzeichnis/reader";
 export { readHilfsmittelverzeichnis };
+
+export { fromBER } from "asn1js";

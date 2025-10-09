@@ -101,18 +101,18 @@ export const isArray = <T>(obj: T, key: keyof T, minLength: number, maxLength?: 
     }
 }
 
-export const isOptionalVarchar = <T>(obj: T, key: keyof T, maxLength: number): ValidationResult => 
-    obj[key] == undefined ? undefined : isVarchar(obj, key, maxLength)
+export const isOptionalVarchar = <T>(obj: T, key: keyof T, maxLength: number, minLength = 1): ValidationResult => 
+    obj[key] == undefined ? undefined : isVarchar(obj, key, maxLength, minLength)
 
-export const isVarchar = <T>(obj: T, key: keyof T, maxLength: number): ValidationResult => {
+export const isVarchar = <T>(obj: T, key: keyof T, maxLength?: number, minLength = 1): ValidationResult => {
     const value = obj[key]
     if (typeof value != "string") {
         return error("noString", key)
-    } else if (value.length == 0 ) {
+    } else if (value.length < minLength ) {
         /* because in EDIFACT, "" == undefined but in our datastructure, we explicitly use undefined
            if a field is undefined. */
         return error("textEmpty", key)
-    } else if(value.length > maxLength) {
+    } else if (maxLength != undefined && value.length > maxLength) {
         return error("textTooLong", key, {
             maxLength: maxLength.toString(), 
             truncatedValue: value.substring(0, maxLength)
@@ -141,12 +141,13 @@ export const isIK = <T>(obj: T, key: keyof T): ValidationResult => {
     }
 }
 
-export const isRechnungsnummer = <T>(obj: T, key: keyof T): ValidationResult => {
-    const value = obj[key]
-    if (typeof value != "string") {
-        return error("noString", key)
-    } else if(!/^[a-z0-9][a-z0-9/-]*[a-z0-9]$/i.test(value)) {
-        return error("rechnungsnummerIncorrect", key)
+export const isRechnungsnummer = (value?: string): ValidationResult => {
+    if (value == undefined || value == "") {
+        return
+    } else if (typeof value != "string") {
+        return error("noString")
+    } else if (!/^[a-z0-9]+([/-][a-z0-9]+)*[/-]?$/i.test(value)) {
+        return error("rechnungsnummerIncorrect")
     }
 }
 
@@ -167,7 +168,7 @@ export const isTruncatedIfTooLong = (result: ValidationResult): ValidationResult
 export const arrayConstraints = <T>(
     obj: any,
     key: string,
-    perItemConstraints: (item: T) => ValidationResult[]
+    perItemConstraints: (item: T, index: number, value: T[]) => ValidationResult[]
 ): ValidationResult[] => {
     const value = obj[key]
     // not-set value is treated the same as an empty array by this function
@@ -178,7 +179,7 @@ export const arrayConstraints = <T>(
         return [ error("noArray", key) ]
     }
     return value.flatMap((item, i) => {
-        const results = perItemConstraints(item)
+        const results = perItemConstraints(item, i, value)
         results.forEach(result => {
             if (result != undefined) {
                 result.path.unshift(i)
@@ -194,7 +195,7 @@ export const valueConstraints = <T>(
     key: string,
     itemConstraints: (item: T) => ValidationResult[]
 ): ValidationResult[]  => {
-    if (obj[key] === undefined) {
+    if (obj[key] == undefined) {
         return []
     }
     const results = itemConstraints(obj[key] as T)

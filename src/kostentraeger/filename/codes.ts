@@ -9,16 +9,30 @@
  *  addresses and rules how and where to send the invoices.
 */
 export const kassenartSchluessel = {
-    "AO": "Allgemeine Ortskrankenkassen",
-    "EK": "Ersatzkassen",
-    "BK": "Betriebskrankenkassen",
-    "IK": "Innungskrankenkassen",
-    "BN": "Knappschaft-Bahn-See",
-    "LK": "Landwirtschaftliche Krankenkasse",
-    "GK": "Gesetzliche Krankenversicherung"
+    "AO": "AOK", // Allgemeine Ortskrankenkassen
+    "EK": "Ersatzkassen", // Verband der Ersatzkassen (vdek), u.a. TK
+    "BK": "Betriebskrankenkassen (BKK)",
+    "IK": "Innungskrankenkassen (IKK)",
+    "BN": "Knappschaft-Bahn-See", // Knappschaft, KBS
+    "LK": "Landwirtschaftliche Krankenkassen (SVLFG)", 
+    // "GK": "Gesetzliche Krankenversicherung"
 }
 
 export type KassenartSchluessel = keyof typeof kassenartSchluessel
+
+/** Indicates the group of statutory health insurance with their abbreviated names.
+*/
+export const kassenartShortSchluessel = {
+    "AO": "AOK",
+    "EK": "vdek",
+    "BK": "BKK",
+    "IK": "IKK",
+    "BN": "KBS",
+    "LK": "SVLFG",
+}
+
+export type KassenartShortSchluessel = keyof typeof kassenartShortSchluessel
+
 
 /** For a "Kostenträger" file, indicates for which health care provider this file is used - 
  * 
@@ -28,7 +42,7 @@ export type KassenartSchluessel = keyof typeof kassenartSchluessel
  *  For services of care providers according to § 302 SGB V, it is
  *  "Datenaustausch Teilprojekt Sonstige Leistungserbringer"
   */
-export const verfahrenSchluessel = { 
+export const verfahrenSchluessel = {
     "01": "Datenaustausch Teilprojekt Ärzte",
     "02": "Datenaustausch Teilprojekt Zahnärzte",
     "03": "Datenaustausch Teilprojekt Apotheken",

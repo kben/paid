@@ -10,7 +10,10 @@ export const validate = (validationResults: ValidationResult[]): ValidationError
 }
 
 const getPath = (error: ValidationError): string => 
-    error.path.map(p => typeof p == "string" ? "." + p : "[" + p.toString() + "]").join("")
+    error.path.map((p, index) => typeof p == "string" 
+        ? (index > 0 ? "." : "") + p 
+        : "[" + p.toString() + "]"
+    ).join("")
 
 const getMessage = (error: ValidationError): string => {
     let message: string = messages[error.code] || ""
@@ -65,6 +68,8 @@ const messages = {
     "certificateExpired": "Certificate validity has ended.",
     "certificateBeforeValidity": "Certificate is not valid yet.",
     "certificateWillExpire": "Certificate will expire in less than 30 days.",
+
+    "einsaetzeWithoutPflegegrad": "Services in time intervals without Pflegegrad cannot be invoiced.", 
 
     "unexpectedType": "Property data type does not match the expected type.",
     "invalidCharacters": "The payload contains invalid characters.",

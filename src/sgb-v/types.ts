@@ -44,11 +44,11 @@ export type Leistungserbringergruppe = {
 
 export const createLeistungserbringergruppe = (
     le: Leistungserbringer,
-    kostentraegerIK: string
+    tarifkennzeichen: string
 ): Leistungserbringergruppe => ({
     abrechnungscode: le.abrechnungscode,
     tarifbereich: le.tarifbereich,
-    sondertarif: le.sondertarifJeKostentraegerIK[kostentraegerIK] || "000"
+    sondertarif: tarifkennzeichen || "000"
 })
 
 export const leistungserbringergruppeCode = (le: Leistungserbringergruppe): string[] => [
@@ -87,8 +87,6 @@ export type Leistungserbringer = Institution & {
     tarifbereich: TarifbereichSchluessel
     /** Location of care provider. Necessary to know where to send bills to */
     location: CareProviderLocationSchluessel
-    /** Per Kostenträger IK a 3-character id for the Sondertarif, see sgb-v/codes.ts */
-    sondertarifJeKostentraegerIK: Record<string, string>
 
     /** Steuernummer (according to §14 Abs. 1a) OR Umsatzsteuer-Identifikationsnummer.
      *  Mandatory if not VAT excempt. */
@@ -117,6 +115,9 @@ export type BaseAbrechnungsfall = {
      *  übermitteln." https://www.gesetze-im-internet.de/sgb_5/__116b.html
      */
     besondereVersorgungsform?: string
+    /** 3 characters identifying a specific Vergütungsvereinbarung with the Kostenträger; 
+     * defaults to "000" if empty. */
+    tarifkennzeichen: string
 }
 
 /** Fields common to all types of Abrechnungsposition for the different subgroups (Heilmittel-

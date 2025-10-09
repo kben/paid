@@ -19,7 +19,11 @@ import {
     ZuschlagsartSchluessel,
     ZuschlagsberechnungSchluessel,
     ZuschlagSchluessel,
-    ZuschlagszuordnungSchluessel
+    ZuschlagszuordnungSchluessel,
+    EntlastungsleistungSchluessel,
+    BeratungsbesuchSchluessel,
+    SonstigeLeistungSchluessel,
+    PflegegradSchluessel
 } from "./codes"
 
 export const messageIdentifiers = {
@@ -27,40 +31,51 @@ export const messageIdentifiers = {
     "PLAA": "Pflegeleistungserbringer Abrechnungsdaten je Abrechnungsfall",
 }
 export const messageIdentifierVersions = {
-    "PLGA": "PLGA:2",
-    "PLAA": "PLAA:3",
+    "PLGA": "PLGA:6",
+    "PLAA": "PLAA:6",
 }
 export type MessageIdentifiers = keyof typeof messageIdentifiers
 
 export type Invoice = {
     leistungserbringer: Leistungserbringer
+    rechnungsnummer: string | null
+    /** Date the bill was created. If not specified, the date is "now" */
+    rechnungsdatum: Date | null
     faelle: Abrechnungsfall[]
 }
 
 export type Leistungserbringer = Institution & {
+    postalAddress: {
+        street1: string
+        postalCode: string
+        city: string
+    }
     abrechnungscode: AbrechnungscodeSchluessel
     location: CareProviderLocationSchluessel
     tarifbereich: TarifbereichSchluessel
 
-    /** Per Kostenträger IK a 3-character id for the SGB XI Sondertarif, see sgb-xi/codes.ts */
-    sondertarifJeKostentraegerIK: Record<string, string>
-
     /** Steuernummer (according to §14 Abs. 1a) OR Umsatzsteuer-Identifikationsnummer.
      *  Mandatory if not VAT excempt. */
-    umsatzsteuerOrdnungsnummer?: string
+    umsatzsteuerOrdnungsnummer: string | null
     /** specified if income tax excempt */
-    umsatzsteuerBefreiung?: UmsatzsteuerBefreiungSchluessel
+    umsatzsteuerBefreiung: UmsatzsteuerBefreiungSchluessel | null
 }
 
 export type Abrechnungsfall = {
     versicherter: Versicherter
+    kostentraegerIK: string | null
+    /** 3 characters identifying a specific Vergütungsvereinbarung with the Kostenträger; 
+     * defaults to "000" if empty. */
+    tarifkennzeichen: string
+    belegnummer: string | null
+    pflegegrad: PflegegradSchluessel | null
     einsaetze: Einsatz[]
 }
 
 export type Einsatz = {
     /** Date and time at which the health care service started. 
      *  Mandatory for billing with Vergütungsart 01, 02, 03 and 06. */
-    leistungsBeginn?: Date
+    leistungsBeginn: Date
     leistungen: Leistung[]
 }
 
@@ -74,7 +89,8 @@ export type Leistung =
     VollstationaerOderKurzzeitpflegeLeistung |
     PflegehilfsmittelLeistung |
     WegegebuehrenLeistung |
-    PauschaleLeistung |
+    EntlastungsLeistung |
+    BeratungsbesuchLeistung |
     SonstigeLeistung
 
 type BaseLeistung = {
@@ -86,13 +102,20 @@ type BaseLeistung = {
     einzelpreis: number
     /** Number of things done, f.e. 3x check blood pressure, 3x 15 minutes etc. */
     anzahl: number
-    punktwert?: number
-    punktzahl?: number
+    punktwert: number | null
+    punktzahl: number | null
 
     /** only mandatory for verguetungsart 04 */
-    leistungsBeginn?: Date
+    leistungsBeginn: Date| null
     /** mandatory for verguetungsart 02, 03, 04; optional for verguetungsart 01 */
-    leistungsEnde?: Date
+    leistungsEnde: Date| null
+
+    /** ID(s) (from national registry) for nurse(s) who provided the service.
+     * Mandatory for ambulanter Pflegedienst or Betreuungsdienst or Einzelpflegekraft 
+     * nach § 77 SGB XI. If the nurse doesn't have an ID, use a key from Schlüsselverzeichnis 2.17.
+     * */
+    beschaeftigtennummer1: number | null
+    beschaeftigtennummer2: number | null
 
     zuschlaege: Zuschlag[]
 }
@@ -130,24 +153,29 @@ export type WegegebuehrenLeistung = BaseLeistung & {
     verguetungsart: "06"
     wegegebuehren: WegegebuehrenSchluessel
     /** mandatory if wegegebuehren == "04"; omitted for all other values of wegegebuehren */
-    gefahreneKilometer?: number
+    gefahreneKilometer: number | null
 }
 
-export type PauschaleLeistung = BaseLeistung & {
+export type EntlastungsLeistung = BaseLeistung & {
+    verguetungsart: "07"
+    entlastungsleistung: EntlastungsleistungSchluessel
+}
+
+export type BeratungsbesuchLeistung = BaseLeistung & {
     verguetungsart: "08"
-    // there is only one code for Pauschale: "Einsatzspauschale" = "1", see codes.ts 2.7.7
+    beratungsbesuch: BeratungsbesuchSchluessel
 }
 
 export type SonstigeLeistung = BaseLeistung & {
     verguetungsart: "99"
-    // there is only one code for Pauschale: "Sonstiges" = "99", see codes.ts 2.7.8
+    sonstigeLeistung: SonstigeLeistungSchluessel
 }
 
 export type Zuschlag = {
     zuschlagsart: ZuschlagsartSchluessel
     zuschlag: ZuschlagSchluessel
     /** Mandatory if zuschlagsart == "00" */
-    beschreibungZuschlagsart?: string
+    beschreibungZuschlagsart: string | null
     zuschlagszuordnung: ZuschlagszuordnungSchluessel
     zuschlagsberechnung: ZuschlagsberechnungSchluessel
     istAbzugStattZuschlag: boolean
@@ -165,16 +193,16 @@ export type Zuschlag = {
 
 export type Pflegehilfsmittel = {
     /** Only to be specified if there is any Mehrwertsteuer on it */
-    mehrwertsteuerart?: MehrwertsteuerSchluessel
+    mehrwertsteuerart: MehrwertsteuerSchluessel | null
     /** according to § 40 SGB XI */
-    gesetzlicheZuzahlungBetrag?: number
+    gesetzlicheZuzahlungBetrag: number | null
     /** Bei der Kostenzusage vergebene Genehmigungsnummer. Required only for "technische Hilfsmittel" */
-    genehmigungskennzeichen?: string
-    genehmigungsDatum?: Date
+    genehmigungskennzeichen: string | null
+    genehmigungsDatum: Date | null
     /** Required only for "technische Hilfsmittel" (see § 40 Abs. 3 SGB XI) */
-    kennzeichenPflegehilfsmittel?: PflegehilfsmittelSchluessel
+    kennzeichenPflegehilfsmittel: PflegehilfsmittelSchluessel | null
     /** Only to be specified if for the adjuvant used, there is no Pflegehilfsmittelpositionsnummer yet */
-    bezeichnungPflegehilfsmittel?: string
+    bezeichnungPflegehilfsmittel: string | null
     /** Positionsnummer für Produktbesonderheiten von Pflegehilfsmitteln 
      *  
      *  This 1-10 digit number must be specified if it is specified that way in the respective 
@@ -193,7 +221,7 @@ export type Pflegehilfsmittel = {
      *  > dass die Angabe der Hilfsmittelpositionsnummern für Produktbesonderheiten durch den 
      *  > Leistungserbringer vertragsabhängig als manuelle Eingabe erfolgen muss.
     */
-    produktbesonderheitenPflegehilfsmittel?: string
+    produktbesonderheitenPflegehilfsmittel: string | null
     /** Inventory number of the adjuvant used (if applicable) */
-    inventarnummerPflegehilfsmittel?: string
+    inventarnummerPflegehilfsmittel: string | null
 }

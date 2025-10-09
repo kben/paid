@@ -16,17 +16,17 @@ export const isValidCertificate = async <T>(
     property: keyof T, 
     issuerCertificateBinary?: ArrayBuffer
 ): Promise<ValidationError[]> => {
-    const certificateBinary = obj[property] as unknown as ArrayBuffer;
+    const certificateBinary = obj[property] as unknown as Uint8Array;
     let notAfter: Date | undefined = undefined;
     let notBefore: Date | undefined = undefined;
     let verified = false;
     const results: ValidationError[] = [];
-    const now = new Date();
+    const now = Date.now();
     const nearExpirationDate = new Date();
     nearExpirationDate.setDate(nearExpirationDate.getDate() + 30);
 
-    if (certificateBinary?.constructor != ArrayBuffer) {
-        return [error("unexpectedType", property, {expectedType: "ArrayBuffer"})];
+    if (certificateBinary?.constructor != ArrayBuffer && certificateBinary?.constructor != Uint8Array) {
+        return [error("unexpectedType", property, { expectedType: "ArrayBuffer or Uint8Array"})];
     }
 
     try {
@@ -53,16 +53,16 @@ export const isValidCertificate = async <T>(
         results.push(error("certificateVerificationFailed", property))
     }
 
-    if (!notAfter || notAfter <= now) {
+    if (!notAfter || notAfter.getTime() < now) {
         results.push(error("certificateExpired", property))
     }
 
-    if (!notBefore || now <= notBefore) {
+    if (!notBefore || now < notBefore.getTime()) {
         results.push(error("certificateBeforeValidity", property))
     }
 
-    if (!!notAfter && now < notAfter && notAfter <= nearExpirationDate) {
-        results.push(warning("certificateWillExpire", property));
+    if (!!notAfter && now < notAfter.getTime() && notAfter.getTime() <= nearExpirationDate.getTime()) {
+        results.push(warning("certificateWillExpire", property, { expirationDate: notAfter.toISOString() }));
     }
 
     return results;

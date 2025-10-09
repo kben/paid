@@ -12,7 +12,7 @@ describe("validate certificate", () => {
             code: "unexpectedType",
             type: 1,
             path: ["certificate"],
-            params: { expectedType: "ArrayBuffer" }
+            params: { expectedType: "ArrayBuffer or Uint8Array" }
         }]);
     });
 
@@ -57,6 +57,9 @@ describe("validate certificate", () => {
             code: "certificateWillExpire",
             type: 0,
             path: ["certificateAsDER"],
+            params: {
+                expirationDate: new Date(new Date(certificate.notAfter.value).setMilliseconds(0)).toISOString()
+            }
         }]);
     });
 

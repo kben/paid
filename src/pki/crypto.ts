@@ -9,7 +9,7 @@ export const initCrypto = (): CryptoEngine => {
     setEngine(
         name,
         crypto,
-        new CryptoEngine({ name, crypto, subtle: crypto.subtle }) as SubtleCrypto
+        new CryptoEngine({ name, crypto, subtle: crypto.subtle })
     );
     const cryptoEngine = getCrypto() as CryptoEngine;
 

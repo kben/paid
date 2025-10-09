@@ -15,12 +15,12 @@ export const billingEmail = (
         name: sender.ik,
         address: sender.email
     },
-    to: [{ address: recipientEmailAddress }],
-    ...addDate(),
+    to: [{ address: recipientEmailAddress, name: "" }],
+    date: formattedDateForEmail(),
     subject: sender.ik,
     body: [
-        [instructionFile.name, instructionFile.data.byteLength, fileDate()].join(", "),
-        [payloadFile.name, payloadFile.data.byteLength, fileDate()].join(", "),
+        [instructionFile.name, instructionFile.bytes.byteLength, fileDate()].join(", "),
+        [payloadFile.name, payloadFile.bytes.byteLength, fileDate()].join(", "),
         sender.name,
         sender.ansprechpartner[0]?.name ? "Ansprechpartner: " + sender.ansprechpartner[0]?.name : undefined,
         sender.email ? "E-Mail: " + sender.email : sender.email,
@@ -29,33 +29,14 @@ export const billingEmail = (
     attachments: [payloadFile, instructionFile]
 });
 
-// Obsolete in 2022
-export const certificationRequestEmail = (
-    senderIK: string,
-    senderEmailAddress: string,
-    certificationRequestFile: File
-): Email => ({
-    from: {
-        name: senderIK,
-        address: senderEmailAddress
-    },
-    to: [{ address: "crq@itsg-trust.de" }],
-    ...addDate(),
-    subject: `Zertifizierungsanfrage fuer ${senderIK}`,
-    body: "",
-    attachments: [certificationRequestFile]
-});
-
-const addDate = (date = new Date()) => {
+export const formattedDateForEmail = (date = new Date()) => {
     const day = date.getDate().toString().padStart(2, "0");
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
     const year = date.getFullYear();
     const hour = date.getHours().toString().padStart(2, "0");
     const minute = date.getMinutes().toString().padStart(2, "0");
 
-    return {
-        date: `${day}.${month}.${year} ${hour}:${minute}`
-    }
+    return `${day}.${month}.${year} ${hour}:${minute}`;
 };
 
 const fileDate = (value = new Date()) => 

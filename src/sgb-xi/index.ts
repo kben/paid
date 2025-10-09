@@ -8,11 +8,12 @@ import {
     Einsatz,
     Leistung
 } from "./types";
-import { valuesGroupedBy } from "../utils";
+import { incrementalNumber, valuesGroupedBy } from "../utils";
 import { LeistungsartSchluessel, RechnungsartSchluessel } from "./codes";
 import { UNB, UNZ } from "./segments";
 import { makePLAA, makePLGA } from "./message";
-import { BillingData, GroupInvoiceByRecipientMethod, Recipient } from "../types";
+import { BillingData, GroupInvoiceByRecipientMethod, Pflegegrad, Recipient } from "../types";
+import { InstitutionListsIndex } from "../kostentraeger";
 
 /** 
  * # Structure
@@ -66,34 +67,66 @@ import { BillingData, GroupInvoiceByRecipientMethod, Recipient } from "../types"
 export const makeNutzdaten = (
     billingData: BillingData,
     invoices: Invoice[],
+    institutionListsIndex: InstitutionListsIndex,
     senderIK: string,
-    recipientIK: string, 
+    recipientIK: string,
     datenaustauschreferenz: number,
     anwendungsreferenz: string,
 ) => {
+    const { rechnungsart, rechnungsnummerprefix, belegnummerprefix, testIndicator } = billingData;
+    const assignNumbers = true;
     let messageNumber = 0;
-    let invoiceIndex = 0;
+    let belegnummer = billingData.nextBelegnummer;
+    let rechnungsnummer = billingData.nextRechnungsnummer;
 
-    // sort leistungen und einsätze by start date
-    invoices.forEach(invoice => 
-        invoice.faelle.forEach(fall => {
-            fall.einsaetze.forEach(einsatz =>
-                einsatz.leistungen.sort(sortByLeistungsBeginn)
-            );
-            fall.einsaetze.sort(sortByLeistungsBeginn);
-        })
-    );
+    // according to section 4.2 Struktur der Datei, grouped invoices for all three Rechnungsarten
+    const groupedInvoices: Invoice[][] = mapEachKostentraeger(invoices, rechnungsart, institutionListsIndex)
+        .flatMap(invoices => [
+            ...mapEachLeistungserbringerAndPflegekasse(invoices).map((invoicesByPflegekasse) => [
+                ...invoicesByPflegekasse.map((invoice, leistungserbringerIndex) => ({
+                    ...invoice,
+                    // ensure that every Abrechnungsfall is per one month and one Pflegegrad
+                    faelle: splitByPflegegrad(groupByMonth(
+                        invoice.faelle.map(fall => {
+                            // sort leistungen und einsätze by start date
+                            fall.einsaetze.forEach(einsatz =>
+                                einsatz.leistungen.sort(sortByLeistungsBeginn)
+                            );
+                            fall.einsaetze.sort(sortByLeistungsBeginn);
+                            return fall
+                        })
+                    )).map(fall => ({
+                        ...fall,
+                        // assign an auto-incremental belegnummer if needed
+                        belegnummer: fall.belegnummer || (assignNumbers
+                            ? incrementalNumber(belegnummer++, 10, belegnummerprefix)
+                            : null),
+                    })),
+                    // assign an auto-incremental invoice number if needed
+                    rechnungsnummer: invoice.rechnungsnummer || (assignNumbers
+                        ? incrementalNumber(
+                            leistungserbringerIndex == 0
+                                ? rechnungsnummer++
+                                : (rechnungsnummer - 1),
+                            14, 
+                            rechnungsnummerprefix
+                        )
+                        : null),
+                    rechnungsdatum: invoice.rechnungsdatum || new Date(),
+                }))
+            ])
+        ]);
+    const flattenedInvoices = groupedInvoices.flatMap(item => item);
 
-    // according to section 4.2 Struktur der Datei, grouped for all three Rechnungsarten
     const nutzdaten = [
-        UNB(senderIK, recipientIK, datenaustauschreferenz, anwendungsreferenz, billingData.testIndicator),
-        ...mapEachKostentraeger(invoices, billingData.rechnungsart).flatMap(invoices => [
-            ...mapEachLeistungserbringerAndPflegekasse(invoices).flatMap((invoicesByPflegekasse, index) => [
-                ...makePLGA(++messageNumber, mergeInvoices(invoicesByPflegekasse), billingData, ++invoiceIndex, index, true),
-                ...invoicesByPflegekasse.flatMap((invoice, leistungserbringerIndex) => [
-                    ...makePLGA(++messageNumber, invoice, billingData, invoiceIndex, leistungserbringerIndex, false),
-                    ...makePLAA(++messageNumber, invoice, billingData, invoiceIndex, leistungserbringerIndex)
-                ])
+        UNB(senderIK, recipientIK, datenaustauschreferenz, anwendungsreferenz, testIndicator),
+        ...groupedInvoices.flatMap((invoicesByPflegekasse, index) => [
+            ...rechnungsart != "1" || invoicesByPflegekasse.length > 1
+                ? makePLGA(++messageNumber, mergeInvoices(invoicesByPflegekasse), billingData, index, true)
+                : [],
+            ...invoicesByPflegekasse.flatMap((invoice, leistungserbringerIndex) => [
+                ...makePLGA(++messageNumber, invoice, billingData, leistungserbringerIndex, false),
+                ...makePLAA(++messageNumber, invoice, billingData, leistungserbringerIndex)
             ])
         ]),
         UNZ(messageNumber, datenaustauschreferenz)
@@ -101,7 +134,12 @@ export const makeNutzdaten = (
 
     // console.log(indentNutzdaten(nutzdaten));
 
-    return nutzdaten;
+    return {
+        nutzdaten,
+        invoices: flattenedInvoices,
+        nextRechnungsnummer: rechnungsnummer,
+        nextBelegnummer: belegnummer,
+    };
 };
 
 const sortByLeistungsBeginn = (a: Einsatz | Leistung, b: Einsatz | Leistung) =>
@@ -111,20 +149,34 @@ const sortByLeistungsBeginn = (a: Einsatz | Leistung, b: Einsatz | Leistung) =>
 const mapEachKostentraeger = (
     invoices: Invoice[], 
     rechnungsart: RechnungsartSchluessel,
+    institutionListsIndex: InstitutionListsIndex,
 ): Invoice[][] => 
     structureForRechnungsart(
-        invoices.flatMap(invoice => 
-            groupFaelleByKostentraeger(invoice.faelle)
+        invoices.flatMap(invoice => {
+            const faelle = groupByLeistungsart(invoice.faelle)
+                .flatMap(fall => {
+                    const { krankenkasse, kostentraeger } = institutionListsIndex.findForData(
+                        fall.versicherter.krankenkasseIK, 
+                        { sgbxiLeistungsart: fall.einsaetze[0].leistungen[0].leistungsart },
+                        invoice.leistungserbringer.location,
+                    ) || {};
+
+                    if (!krankenkasse || !kostentraeger) {
+                        return [];
+                    }
+
+                    fall.versicherter.krankenkasseIK = krankenkasse.ik;
+                    return [{ ...fall, kostentraegerIK: kostentraeger.ik }]
+                });
+            
+            return valuesGroupedBy(faelle, fall => fall.kostentraegerIK)
                 .map(faelle => ({
                     ...invoice,
-                    faelle: groupByLeistungsart(faelle)
-                } as Invoice))
-        ),
+                    faelle
+                }));
+        }),
         rechnungsart
     );
-
-const groupFaelleByKostentraeger = (faelle: Abrechnungsfall[]): Abrechnungsfall[][] =>
-    valuesGroupedBy(faelle, fall => fall.versicherter.kostentraegerIK || "");
 
 /** 
  * split an array of Abrechnungsfälle based on the property leistungsart 
@@ -159,33 +211,108 @@ const structureForRechnungsart = (
         : groupInvoicesByKostentraeger(invoices);
 
 const groupInvoicesByKostentraeger = (invoices: Invoice[]): Invoice[][] =>
-    valuesGroupedBy(invoices, invoice => invoice.faelle[0].versicherter.kostentraegerIK || "");
+    valuesGroupedBy(invoices, invoice => invoice.faelle[0].kostentraegerIK || "");
 
 const mapEachLeistungserbringerAndPflegekasse = (invoices: Invoice[]): Invoice[][] => 
     invoices.map(invoice =>
-        valuesGroupedBy(invoice.faelle, fall => fall.versicherter.pflegekasseIK)
+        valuesGroupedBy(invoice.faelle, fall => fall.versicherter.krankenkasseIK)
             .map(faelle => ({ ...invoice, faelle } as Invoice))
     );
 
 const mergeInvoices = (invoices: Invoice[]): Invoice => ({
+    ...invoices[0],
     leistungserbringer: {...invoices[0].leistungserbringer},
     faelle: invoices.flatMap(invoice => invoice.faelle)
 })
 
+// - group Abrechnungsfaelle
+
+const groupByMonth = (faelle: Abrechnungsfall[]) => faelle.flatMap(fall => [
+    ...valuesGroupedBy(fall.einsaetze, einsatz =>
+        getLeistungsBeginn(einsatz)?.getMonth().toString() || ""
+    ).flatMap(einsaetze => ({
+        ...fall,
+        einsaetze
+    } as Abrechnungsfall))
+]);
+
+export const splitByPflegegrad = (faelle: Abrechnungsfall[]): Abrechnungsfall[] => faelle.flatMap(fall => {
+    const dates = fall.einsaetze
+        .map(einsatz => getLeistungsBeginn(einsatz)?.getTime())
+        .filter(date => date != undefined);
+    const start = Math.min(...dates as number[]);
+    const end = Math.max(...dates as number[]);
+    const pflegegrade = getMatchingPflegegrade(fall.versicherter.pflegegrad, start, end);
+
+    if (pflegegrade.length == 0) {
+        return [];
+    } else if (pflegegrade.length == 1) {
+        const pflegegrad = pflegegrade[0].value;
+
+        if (pflegegrad) {
+            return [{ ...fall, pflegegrad }];
+        } else {
+            return [];
+        }
+    } else {
+        return pflegegrade.flatMap((pflegegrad, index, list) => {
+            if (pflegegrad.value) {
+                const start = pflegegrad.since.getTime();
+                const end = list.at(index + 1)?.since.getTime();
+                return [{
+                    ...fall,
+                    pflegegrad: pflegegrad.value,
+                    einsaetze: fall.einsaetze.filter(einsatz => {
+                        const date = getLeistungsBeginn(einsatz)?.getTime();
+                        return !date || (start <= date && (!end || date < end));
+                    })
+                }];
+            } else {
+                return [];
+            }
+        });
+    }
+});
+
+export function getLeistungsBeginn({ leistungsBeginn, leistungen }: Einsatz) {
+    return leistungsBeginn || leistungen.find(leistung => !!leistung.leistungsBeginn)?.leistungsBeginn;
+}
+
+export function getMatchingPflegegrade(pflegegrade: Pflegegrad[], start: number, end: number) {
+    if (pflegegrade.length == 1) {
+        if (pflegegrade[0].since.getTime() < end) {
+            return pflegegrade;
+        } else {
+            return [];
+        }
+    } else {
+        return pflegegrade
+            .slice()
+            .sort((a, b) => (a.since.getTime() ?? Number.NEGATIVE_INFINITY) - (b.since.getTime() ?? Number.NEGATIVE_INFINITY))
+            .filter(({ since }, index, list) =>
+                since.getTime() < end
+                && (start <= since.getTime() || !list[index + 1] || start <= list[index + 1].since.getTime())
+            )
+    }
+}
+
 // - group by recipient
 
 export const groupInvoiceByRecipient: GroupInvoiceByRecipientMethod = (invoice, findRecipient) => {
-    const invoiceByRecipient: Record<string, {recipient?: Recipient, invoice: Invoice}> = {};
+    const invoiceByRecipient: Record<string, { 
+        recipient?: Recipient, 
+        krankenkasseIK?: string, 
+        kostentraegerIK?: string, 
+        invoice: Invoice
+    }> = {};
     const location = invoice.leistungserbringer.location;
 
     groupByLeistungsart(invoice.faelle).forEach(fall => {
-        const { key, recipient, kostentraegerIK } = findRecipient(
-            fall.versicherter.pflegekasseIK,
+        const { key, recipient } = findRecipient(
+            fall.versicherter.krankenkasseIK,
             { sgbxiLeistungsart: fall.einsaetze[0]?.leistungen[0]?.leistungsart },
             location,
         );
-
-        fall.versicherter.kostentraegerIK = kostentraegerIK;
 
         if (!invoiceByRecipient[key]) {
             invoiceByRecipient[key] = {
@@ -202,7 +329,6 @@ export const groupInvoiceByRecipient: GroupInvoiceByRecipientMethod = (invoice, 
 
     return invoiceByRecipient;
 }
-
 
 // - debug helper
 

@@ -61,14 +61,16 @@ describe("transcoding to I8", () => {
             type: ValidationResultType.Warning,
             path: ["invoices", "0", "faelle", "0", "versicherter", "firstName"],
             params: {
-                transliteratedValue: "Malgorzata"
+                transliteratedValue: "Malgorzata",
+                value: "Małgorzata",
             }
         }, {
             code: "textTransliterated",
             type: ValidationResultType.Warning,
             path: ["invoices", "0", "faelle", "0", "versicherter", "lastName"],
             params: {
-                transliteratedValue: "Dabrowski"
+                transliteratedValue: "Dabrowski",
+                value: "Dąbrowski",
             }
         }] as ValidationError[]);
     });

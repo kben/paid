@@ -7,12 +7,14 @@ import {
     Amounts, 
     Versicherter,
     Institution,
-    TestIndicator
+    TestIndicator,
+    Ansprechpartner
 } from "../types";
 import {
     MessageIdentifiers, 
     messageIdentifierVersions, 
     Leistungserbringer, 
+    Invoice,
     Abrechnungsfall,
     Leistung, 
     Pflegehilfsmittel,
@@ -23,7 +25,7 @@ import {
     TarifbereichSchluessel, 
     VerarbeitungskennzeichenSchluessel,
 } from "./codes";
-import { mask, number, price, day, month, date, time, datetime, segment } from "../formatter";
+import { mask, number, price, day, month, date, time, datetime, segment, duration } from "../formatter";
 
 const Syntax_Version = "UNOC:3";
 const DefaultCurrency = "EUR";
@@ -40,7 +42,7 @@ export const UNB = (
     absenderIK,
     empfaengerIK,
     datetime(new Date()),
-    datenaustauschreferenz.toString().substr(0, 5),
+    datenaustauschreferenz.toString().substring(0, 5),
     anwendungsreferenz,
     testIndicator
 );
@@ -51,7 +53,7 @@ export const UNZ = (
 ) => segment(
     "UNZ",
     numberOfMessages.toString(),
-    datenaustauschreferenz.toString().substr(0, 5),
+    datenaustauschreferenz.toString().substring(0, 5),
 );
 
 export const UNH = (
@@ -59,7 +61,7 @@ export const UNH = (
     messageIdentifier: MessageIdentifiers,
 ) => segment(
     "UNH",
-    messageReferenceNumber.toString().substr(0, 5),
+    messageReferenceNumber.toString().substring(0, 5),
     messageIdentifierVersions[messageIdentifier]
 );
 
@@ -69,7 +71,7 @@ export const UNT = (
 ) => segment(
     "UNT",
     numberOfSegments.toString(),
-    messageReferenceNumber.toString().substr(0, 5),
+    messageReferenceNumber.toString().substring(0, 5),
 );
 
 export const FKT = (
@@ -82,39 +84,40 @@ export const FKT = (
         rechnungssteller: Institution,
     },
     {
-        pflegekasseIK, // Pflegekasse des Leistungs- bzw. Bewilligungsbescheids; falls angegeben gilt: PLAA == PLGA
         kostentraegerIK, // Institution die die Rechnung begleicht laut Kostenträgerdatei; PLAA == PLGA
-    }: Versicherter,
+        versicherter: { krankenkasseIK }, // Pflegekasse des Leistungs- bzw. Bewilligungsbescheids; falls angegeben gilt: PLAA == PLGA
+    }: Abrechnungsfall,
     isSammelrechnungPLGA?: boolean, // only for PLGA, undefined for PLAA
 ) => segment(
     "FKT",
     verarbeitungskennzeichen,
-    isSammelrechnungPLGA === undefined
-        ? undefined
-        : isSammelrechnungPLGA
-        ? "J"
-        : "",
+    isSammelrechnungPLGA != undefined
+        ? (isSammelrechnungPLGA
+            ? "J"
+            : "")
+        : undefined,
     rechnungssteller.ik,
     kostentraegerIK || "",
-    isSammelrechnungPLGA !== true ? pflegekasseIK : "",
+    isSammelrechnungPLGA !== true ? krankenkasseIK : "",
     isSammelrechnungPLGA !== undefined ? absender.ik : rechnungssteller.ik
 );
 
 export const REC = (
     {
-        rechnungsdatum = new Date(),
-        rechnungsart,
-        rechnungsnummerprefix
+        rechnungsart
     }: BillingData,
-    invoiceIndex: number,
+    {
+        rechnungsnummer,
+        rechnungsdatum,
+    }: Invoice,
     leistungserbringerIndex: number,
     isSammelrechnungPLGA: boolean,
     currency = DefaultCurrency
 ) => segment(
     "REC",
-    mask(rechnungsnummerprefix + "-" + invoiceIndex) + ":" +
+    mask(rechnungsnummer!) + ":" +
         (isSammelrechnungPLGA || rechnungsart == "1" ? 0 : (leistungserbringerIndex + 1)),
-    date(rechnungsdatum),
+    date(rechnungsdatum || new Date()),
     rechnungsart,
     currency
 );
@@ -123,27 +126,29 @@ export const SRD = (
     {
         abrechnungscode,
         tarifbereich,
-        sondertarifJeKostentraegerIK,
     }: Leistungserbringer,
     {
-        versicherter,
         einsaetze,
+        tarifkennzeichen,
     }: Abrechnungsfall,
+    isAbrechnungsstelleAndSammelrechnungPLGA: boolean,
 ) => segment(
     "SRD",
-    abrechnungscode + ":" + tarifbereich 
-        + (sondertarifJeKostentraegerIK[versicherter.kostentraegerIK || ""] || "000"),
+    (isAbrechnungsstelleAndSammelrechnungPLGA
+        ? "00"
+        : abrechnungscode)
+    + ":" + tarifbereich + (tarifkennzeichen.substring(0, 3) || "000"),
     einsaetze[0].leistungen[0].leistungsart
 );
 
 export const UST = ({
-    umsatzsteuerOrdnungsnummer: identifikationsnummer = "",
-    umsatzsteuerBefreiung: befreiung = "",
+    umsatzsteuerOrdnungsnummer: identifikationsnummer,
+    umsatzsteuerBefreiung: befreiung,
 }: Leistungserbringer) => segment(
     "UST",
-    mask(identifikationsnummer),
-    befreiung.length ? "J" : "",
-    befreiung
+    mask(identifikationsnummer || ""),
+    befreiung?.length ? "J" : "",
+    befreiung || ""
 );
 
 export const GES = ({
@@ -166,19 +171,48 @@ export const NAM = ({
     ansprechpartner
 }: Institution) => segment(
     "NAM",
-    mask(name.substr(0, 30)),
-    ...ansprechpartner.slice(0, 3).map(ansprechpartner =>
-        Object.values(ansprechpartner).filter(Boolean).join(", ").substr(0, 30)
-    )
+    mask(name.substring(0, 30)),
+    ...getAnsprechpartner(ansprechpartner)
 );
+
+const getAnsprechpartner = (ansprechpartner: Ansprechpartner[]) => {
+    const maxItems = 4;
+    const maxCharacters = 30;
+    let availableSlots = maxItems - ansprechpartner.length;
+    const result: string[] = [];
+
+    // ensure that phone numbers are not cut off
+    ansprechpartner.slice(0, maxItems - 1).forEach(({ name, phone }) => {
+        if (name && !phone) {
+            result.push(name.substring(0, maxCharacters));
+        } else if (name && phone) {
+            const line = `${name} ${phone}`;
+
+            if (line.length <= maxCharacters) {
+                result.push(line);
+            } else if (phone.length <= maxCharacters) {
+                if (availableSlots > 0) {
+                    result.push(name.substring(0, maxCharacters), phone);
+                    availableSlots--;
+                } else {
+                    result.push(`${name.substring(0, maxCharacters - phone.length - 2)}. ${phone}`);
+                }
+            } else {
+                result.push(name.substring(0, maxCharacters));
+            }
+        }
+    });
+
+    return result;
+}
 
 export const INV = (
     versichertennummer: string | undefined = "",
-    belegNummer: number
+    belegnummer: string
 ) => segment(
     "INV",
-    mask(versichertennummer),
-    (belegNummer + 1).toString()
+    mask(versichertennummer.substring(0, 12)),
+    belegnummer.substring(0, 10)
 );
 
 export const NAD = ({
@@ -188,13 +222,13 @@ export const NAD = ({
     address
 }: Versicherter) => segment(
     "NAD",
-    mask(firstName.substr(0, 45)),
-    mask(lastName.substr(0, 45)),
+    mask(firstName.substring(0, 45)),
+    mask(lastName.substring(0, 45)),
     date(birthday),
-    mask(address?.street?.substr(0, 46) || ""),
-    mask(address?.houseNumber?.substr(0, 9) || ""),
-    mask(address?.postalCode?.substr(0, 10) || ""),
-    mask(address?.city?.substr(0, 40) || "")
+    mask(address?.street?.substring(0, 46) || ""),
+    mask(address?.houseNumber?.substring(0, 9) || ""),
+    mask(address?.postalCode?.substring(0, 10) || ""),
+    mask(address?.city?.substring(0, 40) || "")
 );
 
 export const MAN = (
@@ -228,7 +262,9 @@ export const ELS = (leistung: Leistung) => segment(
     number(leistung.punktwert, 5),
     number(leistung.punktzahl, 0),
     getLeistungDetails(leistung),
-    number(leistung.anzahl, 2)
+    number(leistung.anzahl, 2),
+    number(leistung.beschaeftigtennummer1),
+    number(leistung.beschaeftigtennummer2),
 )
 
 /** see codes.ts - 2.7 Schlüssel Leistung */
@@ -245,10 +281,12 @@ const getLeistungSchluessel = (leistung: Leistung): string | undefined => {
             return mask(leistung.positionsnummer) // 10-character string
         case "06":
             return leistung.wegegebuehren
+        case "07":
+            return leistung.entlastungsleistung
         case "08":
-            return "1" // see codes.ts - 2.7.7
+            return leistung.beratungsbesuch
         case "99":
-            return "99" // see codes.ts - 2.7.8
+            return leistung.sonstigeLeistung
     }
 }
 
@@ -268,13 +306,12 @@ const getLeistungSchluessel = (leistung: Leistung): string | undefined => {
  */
 const getLeistungDetails = (leistung: Leistung): string | undefined => {
     switch(leistung.verguetungsart) {
-        case "01": 
-            return leistung.leistungsEnde ? time(leistung.leistungsEnde) : "00"
         case "02":
+            return number(duration(leistung.leistungsBeginn!, leistung.leistungsEnde!, "minutes"), 0).slice(0, 4)
         case "03":
-            return time(leistung.leistungsEnde!!)
+            return time(leistung.leistungsEnde!)
         case "04":
-            return day(leistung.leistungsBeginn!!) + day(leistung.leistungsEnde!!)
+            return day(leistung.leistungsBeginn!) + day(leistung.leistungsEnde!)
         case "06":
             if (leistung.wegegebuehren == "04" && leistung.gefahreneKilometer) {
                 return Math.round(leistung.gefahreneKilometer).toString() // integer from 0-9999
@@ -302,7 +339,7 @@ export const ZUS = (
 ) => segment(
     "ZUS",
     [tarifbereich, zuschlagsart, zuschlag].join(":"),
-    mask(beschreibungZuschlagsart?.substr(0, 50) || ""),
+    mask(beschreibungZuschlagsart?.substring(0, 50) || ""),
     zuschlagszuordnung,
     zuschlagsberechnung,
     istAbzugStattZuschlag ? "0" : "1",
@@ -324,15 +361,15 @@ export const HIL = ({
     mehrwertsteuerbetrag?: number
 ) => segment(
     "HIL",
-    mehrwertsteuerart,
+    mehrwertsteuerart || "",
     price(mehrwertsteuerbetrag),
     price(gesetzlicheZuzahlungBetrag),
-    mask(genehmigungskennzeichen.substr(0, 15)),
+    mask(genehmigungskennzeichen?.substring(0, 15)),
     genehmigungsDatum ? date(genehmigungsDatum) : "",
-    kennzeichenPflegehilfsmittel,
-    mask(bezeichnungPflegehilfsmittel.substr(0, 30)),
-    mask(produktbesonderheitenPflegehilfsmittel.substr(0, 10)),
-    mask(inventarnummerPflegehilfsmittel.substr(0, 20)),
+    kennzeichenPflegehilfsmittel || "",
+    mask(bezeichnungPflegehilfsmittel?.substring(0, 30)),
+    mask(produktbesonderheitenPflegehilfsmittel?.substring(0, 10)),
+    mask(inventarnummerPflegehilfsmittel?.substring(0, 20)),
 );
 
 export const IAF = ({ // is calculcated from all ELS / ZUS / HIL segments for one INV segment

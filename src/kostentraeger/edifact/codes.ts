@@ -22,20 +22,23 @@ export const datenlieferungsArtSchluessel = {
     "07": "digitalisierte Rechnungs- und Abrechnungsdaten " +
           "(PLGA und PLLA für Pflege, SLGA und SLLA für Sonstige)",
 
-    "21": "Rechnung (Papier)",
+    "21": "Rechnung (Papier)", // implies Übermittlungsmedium == 6
 
-    "24": "maschinenlesbarer Beleg",
+    "24": "maschinenlesbare Belege", // implies Übermittlungsmedium == 5
 
     "26": "Verordnung (Papier)",
 
     "27": "Kostenvoranschlag (Papier)",
 
     "28": "Gruppenschlüssel (Einzelschlüssel 21, 26, 27): "+
-          "papiergebundene Unterlagen einer digitalen Abrechnung " +
+        "papiergebundene Unterlagen (Urbelege) einer digitalen Abrechnung " +  // implies Übermittlungsmedium == 6
           "(Verordnung, ggf. Kostenvoranschlag, ggf. Rechnung)",
 
     "29": "Gruppenschlüssel (Einzelschlüssel 24, 26, 27): " +
-          "maschinenlesbarer Beleg einschließlich der dazugehörigen Abrechnungsunterlagen"
+        "maschinenlesbare Belege einschließlich der dazugehörigen Abrechnungsunterlagen (Urbelege)",  // implies Übermittlungsmedium == 5
+
+    "30": "Vollelektronische Abrechnung (elektronische Abrechnung einschließlich " +
+          "elektronischem Leistungsnachweis)",
 }
 export type DatenlieferungsartSchluessel = keyof typeof datenlieferungsArtSchluessel
 
@@ -43,8 +46,8 @@ export type DatenlieferungsartSchluessel = keyof typeof datenlieferungsArtSchlue
 export const ikVerknuepfungsartSchluessel = {
     "00": "Keine Verknüpfung möglich (Verweis ist bilateral zu vereinbaren)",
     "01": "Verweis vom IK der Versichertenkarte zum Kostenträger",
-    "02": "Verweis auf eine Datenannahmestelle (ohne Entschlüsselungsbefugnis). ",
-    "03": "Verweis auf eine Datenannahmestelle (mit Entschlüsselungsbefugnis). ",
+    "02": "Verweis auf eine Datenannahmestelle (ohne Entschlüsselungsbefugnis)",
+    "03": "Verweis auf eine Datenannahmestelle (mit Entschlüsselungsbefugnis)",
     "09": "Verweis auf eine Papierannahmestelle"
 }
 export type IKVerknuepfungsartSchluessel = keyof typeof ikVerknuepfungsartSchluessel
@@ -75,7 +78,8 @@ export type BundeslandSchluessel = keyof typeof bundeslandSchluessel
 export const dfuProtokollSchluessel = {
     "016": "FTAM",
     "023": "FTP", // Verwendung nur nach biliteraler Absprache möglich
-    "070": "SMTP"
+    "070": "SMTP", // E-Mail/Internet
+    "080": "SMTP", // KIM-Mail innerhalb der TI
 }
 export type DFUProtokollSchluessel = keyof typeof dfuProtokollSchluessel
 
@@ -216,6 +220,7 @@ export const uebermittlungszeichensatzSchluessel = {
     "I1": "ISO 8859-1", 
     "I7": "ISO 7-Bit, DIN 66003 DRV 7",
     "I8": "ISO 8-Bit, DIN 66303 DRV 8, in der Fassung 1986-11",
+    "U8": "UTF-8",
     "99": "alle Zeichensätze gemäß Anlage 15 GGT"
 }
 export type UebermittlungszeichensatzSchluessel = keyof typeof uebermittlungszeichensatzSchluessel

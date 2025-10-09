@@ -28,7 +28,6 @@ describe("SGB V messages", () => {
                 abrechnungscode: "16",
                 location: "HH",
                 tarifbereich: "24",
-                sondertarifJeKostentraegerIK: {"000000003": "XXX"},
                 umsatzsteuerOrdnungsnummer: "111222333",
                 umsatzsteuerBefreiung: "01"
             },
@@ -44,30 +43,34 @@ describe("SGB V messages", () => {
             ]
         }, [{
             versicherter: {
-                pflegekasseIK: "000000004",
-                kostentraegerIK: "999999999",
+                krankenkasseIK: "000000004",
                 versichertennummer: "versicherter",
                 versichertenstatus: "30000123456",
                 firstName: "Arthur",
                 lastName: "Dent",
-                birthday: new Date("1970-01-23")
+                birthday: new Date("1970-01-23"),
+                pflegegrad: [],
+                address: null
             },
             belegnummer: "belegnum",
             bruttobetrag: 100.00,
-            zuzahlungUndEigenanteilBetrag: 20.0
+            zuzahlungUndEigenanteilBetrag: 20.0,
+            tarifkennzeichen: "XXX",
         }, {
             versicherter: {
-                pflegekasseIK: "000000004",
-                kostentraegerIK: "999999999",
+                krankenkasseIK: "000000004",
                 versichertennummer: "versicherter",
                 versichertenstatus: "50000123456",
                 firstName: "Zaphod",
                 lastName: "Beeblebrox",
-                birthday: new Date("1337-01-23")
+                birthday: new Date("1337-01-23"),
+                pflegegrad: [],
+                address: null
             },
             belegnummer: "belegnum",
             bruttobetrag: 55.00,
-            zuzahlungUndEigenanteilBetrag: 12.0
+            zuzahlungUndEigenanteilBetrag: 12.0,
+            tarifkennzeichen: "XXX",
         }], calculateGesamtsummen)).toEqual({
             header: [["SLGA", "16", "0", "0"]],
             segments: [

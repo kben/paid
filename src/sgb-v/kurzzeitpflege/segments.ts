@@ -6,7 +6,8 @@
   */
 
 import { segment } from "../../edifact/builder"
-import { char, decimal, date } from "../../edifact/formatter"
+import { char, decimal } from "../../edifact/formatter"
+import { date } from "../../formatter"
 import { Leistungserbringergruppe, leistungserbringergruppeCode } from "../types"
 
 /** Segments for SLLA Q message (Kurzzeitpflege) */

@@ -1,12 +1,12 @@
+import { AsnSerializer } from "@peculiar/asn1-schema"
 import { 
     BundeslandSchluessel,
-    DatenlieferungsartSchluessel,
     KostentraegerSGBVAbrechnungscodeSchluessel,
     KostentraegerSGBXILeistungsartSchluessel,
     KVBezirkSchluessel, 
     LeistungserbringergruppeSchluessel
 } from "./edifact/codes"
-import { KOTRInterchange, KOTRMessage, ANS, ASP, DFU, UEM, VKG } from "./edifact/segments"
+import { KOTRInterchange, KOTRMessage, ANS, ASP, VKG } from "./edifact/segments"
 import { VerfahrenSchluessel } from "./filename/codes"
 import { 
     Address, 
@@ -14,22 +14,11 @@ import {
     Institution, 
     InstitutionLink, 
     InstitutionListParseResult,
-    KVLocationSchluessel,
-    PaperDataType,
-    PapierannahmestelleLink
+    KVLocationSchluessel
 } from "./types"
 import { Certificate } from '@peculiar/asn1-x509'
+import { bufferToCertificate } from "../pki/utils"
 
-
-const datenlieferungsartSchluesselToPaperType = 
-    new Map<DatenlieferungsartSchluessel, PaperDataType>([
-        ["21", PaperDataType.Receipt],
-        ["24", PaperDataType.MachineReadableReceipt],
-        ["26", PaperDataType.Prescription],
-        ["27", PaperDataType.CostEstimate],
-        ["28", PaperDataType.Receipt | PaperDataType.Prescription | PaperDataType.CostEstimate],
-        ["29", PaperDataType.MachineReadableReceipt | PaperDataType.Prescription | PaperDataType.CostEstimate]
-    ])
 
 const bundeslandSchluesselToKVLocation = 
     new Map<BundeslandSchluessel, KVLocationSchluessel>([
@@ -92,7 +81,8 @@ export default function transform(pkeys: Map<string, Certificate[]>, interchange
             leistungserbringerGruppeSchluessel: verfahrenToLeistungserbringergruppeSchluessel(interchange.filename.verfahren),
             kassenart: interchange.filename.kassenart,
             validityStartDate: validityStartDate,
-            institutions: institutions
+            institutions: institutions,
+            caCertificates: pkeys.get("CA")?.map(cert => bufferToCertificate(AsnSerializer.serialize(cert))) || [],
         },
         warnings: warnings
     }
@@ -107,24 +97,62 @@ function validateLinks(institutions: Institution[]): string[] {
 
     institutions.forEach((institution) => {
         const errMsg = `IK ${institution.ik} (${institution.abbreviatedName})`
+
+        if (institution.datenannahmestelleLinks 
+            && !institution.datenannahmestelleLinks.find(link => 
+                link.transmissionTypes.includes("07") || !link.transmissionTypes.length
+            )
+        ) {
+            if (institution.datenannahmestelleLinks.find(link => link.transmissionTypes.includes("30"))) {
+                warnings.push(`${errMsg} has no links with Datenlieferungsart "07" (DTA), but with "30" (KIM)`)
+            } else {
+                warnings.push(`${errMsg} has no links with Datenlieferungsart "07" (DTA) or "30" (KIM)`)
+            }
+        }
+
         /* the link target to every link to a Datenannahme with capacity to decrypt must 
             either accept email themselves or lead to one that does in one link-step */
         institution.datenannahmestelleLinks?.forEach((link) => {
             const da = institutionsByIK.get(link.ik)
-            if (!da?.transmissionEmail) {
-                const butALinkAcceptsData = da?.untrustedDatenannahmestelleLinks?.some((link2) => {
-                    const uda = institutionsByIK.get(link2.ik)
-                    return !!(uda?.transmissionEmail)
-                })
-                if (!butALinkAcceptsData) {
-                    warnings.push(`${errMsg} links to IK ${link.ik} for data but neither that IK nor an IK it links to accepts SMTP (email)`)
+            // only look at DTA links
+            if (link.transmissionTypes.includes("07") || !link.transmissionTypes.length) {
+                if (!da?.transmissionEmail) {
+                    const butALinkAcceptsData = da?.untrustedDatenannahmestelleLinks?.some((link2) => {
+                        const uda = institutionsByIK.get(link2.ik)
+                        return !!(uda?.transmissionEmail)
+                    })
+                    if (!butALinkAcceptsData) {
+                        warnings.push(`${errMsg} links to IK ${link.ik} for data but neither that IK nor an IK it links to accepts SMTP (email)`)
+                    }
+                }
+                /** each Datenannahme with capacity to decrypt must have a certificate */
+                if (!da?.certificates) {
+                    warnings.push(`${errMsg} links to IK ${link.ik} for data but there is not any certificate for encryption`)
+                }
+
+            // only look at KIM links
+            } else if (link.transmissionTypes.includes("30") || !link.transmissionTypes.length) {
+                if (!da?.kim) {
+                    warnings.push(`${errMsg} links to IK ${link.ik} for data but there is no KIM address`)
                 }
             }
-            /** each Datenannahme with capacity to decrypt must have a certificate */
-            if (!da?.certificates) {
-                warnings.push(`${errMsg} links to IK ${link.ik} for data but there is not any certificate for encryption`)
-            }
         })
+
+        // only institutions with Datenannahmestelle for SGB XI Leistungen via DTA
+        if (institution.datenannahmestelleLinks?.length && institution.datenannahmestelleLinks.find(link => 
+            link.sgbxiLeistungsart && (link.transmissionTypes.includes("07") || !link.transmissionTypes.length)
+        )) {
+            if (institution.papierannahmestelleLinks == undefined) {
+                warnings.push(`${errMsg} has no Papierannahmestelle`)
+            }
+            if (institution.papierannahmestelleLinks?.filter(link => link.transmissionTypes.includes("28")).length == 0) {
+                warnings.push(`${errMsg} has no Papierannahmestelle for Datenlieferungsart "28" (Urbelege zu einer digitalen Abrechnung)`)
+            }
+            // too many matches:
+            // if (institution.papierannahmestelleLinks?.filter(link => link.transmissionTypes.includes("21")).length == 0) {
+            //     warnings.push(`${errMsg} has no Papierannahmestelle for Datenlieferungsart "21" (Rechnung Papier)`)
+            // }
+        }
     })
     return warnings
 }
@@ -177,7 +205,7 @@ function transformMessage(
        simpler
      */
 
-    const messageTxt = `Message ${msg.id} -`
+    const messageTxt = `IK ${msg.idk.ik} – message ${msg.id} -`
 
     if (msg.idk.institutionsart != "99") {
         throw new Error(`${messageTxt} Expected that "institutionsart" is always 99`)
@@ -218,14 +246,6 @@ function transformMessage(
         }
     })
 
-    const transmissionZeichensatz = msg.uemList
-        .find((uem) => uem.uebermittlungsmediumSchluessel == "1")
-        ?.uebermittlungszeichensatzSchluessel
-
-    if (transmissionZeichensatz && transmissionZeichensatz != "I8" && transmissionZeichensatz != "99") {
-        throw new Error(`${messageTxt} Unsupported transmission zeichensatz "${transmissionZeichensatz}"`)
-    }
-
     const kostentraegerLinks = msg.vkgList
         .filter((vkg) => vkg.ikVerknuepfungsartSchluessel == "01")
         .map((vkg) => createInstitutionLink(vkg))
@@ -242,42 +262,44 @@ function transformMessage(
 
     const contacts = msg.aspList.map((asp) => createContact(asp))
     
-    const certificates = certificatesByIK.get(msg.idk.ik)
+    const certificates = certificatesByIK.get(msg.idk.ik) || null
 
-    const transmissionEmail = msg.dfuList.find((dfu) => dfu.dfuProtokollSchluessel == "070")?.address
+    const transmissionEmail = msg.dfuList.find((dfu) => dfu.dfuProtokollSchluessel == "070")?.address || null
+    const kim = msg.dfuList.find((dfu) => dfu.dfuProtokollSchluessel == "080")?.address || null
     return {
         ik: msg.idk.ik,
         name: msg.nam.names.join(" "),
         abbreviatedName: msg.idk.abbreviatedName,
         
-        vertragskassennummer: msg.idk.vertragskassennummer,
+        vertragskassennummer: msg.idk.vertragskassennummer || null,
 
-        validityFrom: msgValidityStartDate > interchangeValidityStartDate ? msgValidityStartDate : undefined,
-        validityTo: msgValidityEndDate,
+        validityFrom: msgValidityStartDate > interchangeValidityStartDate ? msgValidityStartDate : null,
+        validityTo: msgValidityEndDate || null,
 
-        contacts: contacts.length > 0 ? contacts : undefined,
+        contacts: contacts.length > 0 ? contacts : null,
         addresses: msg.ansList.map((ans) => createAddress(ans)),
-        transmissionEmail: transmissionEmail,
-        certificates: certificates,
-        kostentraegerLinks: kostentraegerLinks.length > 0 ? kostentraegerLinks : undefined,
-        datenannahmestelleLinks: datenannahmestelleLinks.length > 0 ? datenannahmestelleLinks : undefined,
-        untrustedDatenannahmestelleLinks: untrustedDatenannahmestelleLinks.length > 0 ? untrustedDatenannahmestelleLinks : undefined,
-        papierannahmestelleLinks: papierannahmestelleLinks.length > 0 ? papierannahmestelleLinks : undefined
+        transmissionEmail,
+        certificates,
+        kim,
+        kostentraegerLinks: kostentraegerLinks.length > 0 ? kostentraegerLinks : null,
+        datenannahmestelleLinks: datenannahmestelleLinks.length > 0 ? datenannahmestelleLinks : null,
+        untrustedDatenannahmestelleLinks: untrustedDatenannahmestelleLinks.length > 0 ? untrustedDatenannahmestelleLinks : null,
+        papierannahmestelleLinks: papierannahmestelleLinks.length > 0 ? papierannahmestelleLinks : null
     }
 }
 
 /** Due to the limitations of the EDIFACT format, a link to a Papierannahmestelle that accepts 
  *  any paper may result in 2 - 6 links. Let's merge them here as well... */
-function createPapierannahmestelleLinks(vkgs: VKG[]): PapierannahmestelleLink[] {
-    const result: PapierannahmestelleLink[] = []
+function createPapierannahmestelleLinks(vkgs: VKG[]): InstitutionLink[] {
+    const result: InstitutionLink[] = []
     vkgs.forEach((vkg) => {
         if (vkg.ikVerknuepfungsartSchluessel == "09") {
-            const paperType = datenlieferungsartSchluesselToPaperType.get(vkg.datenlieferungsartSchluessel!) ?? 0
-            const institutionLink = { ...createInstitutionLink(vkg), paperTypes: paperType }
+            const institutionLink = createInstitutionLink(vkg)
 
             const existingInstitutionLink = result.find(link => isInstitutionLinkEqual(link, institutionLink))
+
             if (existingInstitutionLink) {
-                existingInstitutionLink.paperTypes |= paperType
+                existingInstitutionLink.transmissionTypes.push(...institutionLink.transmissionTypes)
             } else {
                 result.push(institutionLink)
             }
@@ -288,7 +310,7 @@ function createPapierannahmestelleLinks(vkgs: VKG[]): PapierannahmestelleLink[] 
 
 function isInstitutionLinkEqual(a: InstitutionLink, b: InstitutionLink): boolean {
     return a.ik == b.ik && 
-           a.location == a.location && 
+           a.location == b.location && 
            a.sgbvAbrechnungscode == b.sgbvAbrechnungscode && 
            a.sgbxiLeistungsart == b.sgbxiLeistungsart
 }
@@ -321,32 +343,37 @@ function createInstitutionLink(vkg: VKG): InstitutionLink {
     if (vkg.tarifkennzeichen) {
         throw new Error(`Expected that tarifkennzeichen is never set, but was "${vkg.tarifkennzeichen}"`)
     }
+
+    const transmissionTypes = vkg.datenlieferungsartSchluessel
+        ? [vkg.datenlieferungsartSchluessel]
+        : []
     
     const leGruppeSchluessel = vkg.leistungserbringergruppeSchluessel
-    let sgbvAbrechnungscode: KostentraegerSGBVAbrechnungscodeSchluessel | undefined
-    let sgbxiLeistungsart: KostentraegerSGBXILeistungsartSchluessel | undefined
+    let sgbvAbrechnungscode: KostentraegerSGBVAbrechnungscodeSchluessel | null = null
+    let sgbxiLeistungsart: KostentraegerSGBXILeistungsartSchluessel | null = null
     if (leGruppeSchluessel == "5") {
-        const schluessel = vkg.sgbvAbrechnungscodeSchluessel
+        const schluessel = vkg.sgbvAbrechnungscodeSchluessel || null
         sgbvAbrechnungscode = schluessel ?? "00"
     } else if (leGruppeSchluessel == "6") {
-        const schluessel = vkg.sgbxiLeistungsartSchluessel
+        const schluessel = vkg.sgbxiLeistungsartSchluessel || null
         sgbxiLeistungsart = schluessel ?? "00"
     }
 
     return {
         ik: vkg.verknuepfungspartnerIK,
-        location: kvLocationSchluessel,
-        sgbvAbrechnungscode: sgbvAbrechnungscode,
-        sgbxiLeistungsart: sgbxiLeistungsart
+        location: kvLocationSchluessel || null,
+        transmissionTypes,
+        sgbvAbrechnungscode,
+        sgbxiLeistungsart
     }
 }
 
 function createContact(asp: ASP): Contact {
     return {
-        phone: asp.phone,
-        fax: asp.fax,
-        name: asp.name,
-        fieldOfWork: asp.fieldOfWork
+        phone: asp.phone || null,
+        fax: asp.fax || null,
+        name: asp.name || null,
+        fieldOfWork: asp.fieldOfWork || null
     }
 }
 
@@ -354,8 +381,8 @@ function createAddress(ans: ANS): Address {
     const { place, postcode, address } = ans
 
     switch(ans.anschriftartSchluessel) {
-        case "1": return { place: place, postcode: postcode, streetAndHousenumber: address }
-        case "2": return { place: place, postcode: postcode, poBox: address }
-        case "3": return { place: place, postcode: postcode }
+        case "1": return { place, postcode, streetAndHousenumber: address }
+        case "2": return { place, postcode, poBox: address }
+        case "3": return { place, postcode }
     }
 }

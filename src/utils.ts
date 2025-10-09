@@ -1,4 +1,3 @@
-
 /** Returns an object containing the elements from the given array indexed by the key returned 
  *  from getKey function applied to each element.
  * 
@@ -37,3 +36,9 @@ export const sum = (items: number[]) => items.reduce((a, b) => a + b, 0)
 /** Sum the the items in the given array by the given function */
 export const sumBy = <T>(items: T[], toNumber: (item: T) => number): number => 
     items.reduce((a, b) => a + toNumber(b), 0)
+
+export const IncrementalNumberMinLength = 5;
+
+export const incrementalNumber = (value: number, maxCharacterLength: number, prefix = "") =>
+    (prefix + value.toString().padStart(Math.min(IncrementalNumberMinLength, maxCharacterLength - prefix.length), "0"))
+        .substring(0, maxCharacterLength)

@@ -2,13 +2,12 @@
   * see docs/documents.md for more info
   */
  
-import { Invoice } from "../sgb-xi/types";
-import { ResultOrErrors, Transmission, InvoicesWithRecipient, BillingData, TestIndicator, File, GroupInvoiceByRecipientMethod } from "../types";
-import { InstitutionList } from "../kostentraeger/types";
+import { Invoice, Leistungserbringer } from "../sgb-xi/types";
+import { ResultOrErrors, Transmission, InvoicesWithRecipient, BillingData, TestIndicator, File, GroupInvoiceByRecipientMethod, Versicherter } from "../types";
 import { InstitutionListsIndex } from "../kostentraeger";
 import { transliterateRecursively } from "../transcoding";
-import { encodeI8, isEncodableI8, transliterateI8 } from "../transcoding/din66003drv";
-import { constraintsForTransmission } from "../validation";
+import { encodeI8, getNonConformingCharactersI8, isEncodableI8, transliterateI8 } from "../transcoding/din66003drv";
+import { constraintsForTransmission, constraintsLeistungserbringer, constraintsVersicherter } from "../validation";
 import { error, validationByType } from "../validation/utils";
 import { ValidationError, ValidationResult } from "../validation/index";
 import { signAndEncryptMessage } from "../pki/pkcs";
@@ -32,30 +31,29 @@ import { constraintsInvoice as constraintsInvoiceSGBXI } from "../sgb-xi/validat
  */
 export const groupInvoicesByRecipientSGBXI = (
     invoices: Invoice[],
-    institutionLists: InstitutionList[]
-) => groupInvoicesByRecipient(invoices, institutionLists, groupInvoiceByRecipientSGBXI);
+    institutionListsIndex: InstitutionListsIndex,
+) => groupInvoicesByRecipient(invoices, institutionListsIndex, groupInvoiceByRecipientSGBXI);
 
 const groupInvoicesByRecipient = (
     invoices: Invoice[],
-    institutionLists: InstitutionList[],
+    institutionListsIndex: InstitutionListsIndex,
     groupInvoiceByRecipient: GroupInvoiceByRecipientMethod,
 ): {
     invoicesWithRecipient: InvoicesWithRecipient[];
     recipientNotFound: Invoice[];
 } => {
-    const institutionListsIndex = new InstitutionListsIndex(institutionLists);
     const invoicesByRecipient: Record<string, InvoicesWithRecipient> = {};
     const recipientNotFound: Invoice[] = [];
 
     invoices.forEach(invoice => {
-        const invoiceByRecipient = groupInvoiceByRecipient(invoice, (pflegekasseIK, leistungsart, location) => {
-            const result = institutionListsIndex.findForData(pflegekasseIK, leistungsart, location);
+        const invoiceByRecipient = groupInvoiceByRecipient(invoice, (krankenkasseIK, leistungsart, location) => {
+            const result = institutionListsIndex.findForData(krankenkasseIK, leistungsart, location);
 
             if (result) {
-                const { kassenart, sendTo, encryptTo, certificate, kostentraeger } = result;
-                const recipient = { kassenart, sendTo, encryptTo, certificate };
+                const { kassenart, sendTo, encryptTo, certificate, papierannahmestellen } = result;
+                const recipient = { kassenart, sendTo, encryptTo, certificate, papierannahmestellen };
                 const key = kassenart + sendTo.ik + encryptTo.ik; // a combination of these values describes a unique transmission recipient
-                return { key, recipient, kostentraegerIK: kostentraeger.ik };
+                return { key, recipient };
             } else {
                 return { key: "notFound" };
             }
@@ -87,11 +85,17 @@ const groupInvoicesByRecipient = (
 type NutzdatenFactory = (
     billingData: BillingData,
     invoices: Invoice[],
+    institutionListsIndex: InstitutionListsIndex,
     senderIK: string,
     recipientIK: string,
     datenaustauschreferenz: number,
     anwendungsreferenz: string,
-) => string;
+) => {
+    nutzdaten: string,
+    invoices: Invoice[],
+    nextRechnungsnummer: number,
+    nextBelegnummer: number,
+};
 
 type DateinameFactory = (
     dateiindikator: TestIndicator,
@@ -100,6 +104,7 @@ type DateinameFactory = (
 
 export type AnwendungsreferenzFactory = (
     billingData: BillingData,
+    abrechnungsmonat: Date,
     absenderIK: string,
     kassenart: KassenartSchluessel,
     laufendeDatenannahmeImJahr: number,
@@ -107,9 +112,11 @@ export type AnwendungsreferenzFactory = (
 
 /**
  * Prepares the transmission of invoices to one recipient.
- * Validates the invoices, generates a payload file (Nutzdatendatei) and an instruction file (Auftragsdatei), 
+ * Validates the invoices, restructures them if needed according to GKV documentation,
+ * automatically adds invoice numbers and dates and document numbers to invoices if missing,
+ * generates a payload file (Nutzdatendatei) and an instruction file (Auftragsdatei), 
  * encodes the files, encrypts and signs the payload file, generates the email parameters and returns
- * them together with the files.
+ * them together with the files and the invoices including potential changes.
  * @param invoicesWithRecipient one of the returned invoicesWithRecipient items from `groupInvoicesByRecipientSGBXI` which needs to be called first
  * @param billingData addtional data about the sender and its transmission history
  * @returns an object with either a `result` property, containing the `email` parameters, 
@@ -122,10 +129,12 @@ export type AnwendungsreferenzFactory = (
 export const createTransmissionSGBXI = async (
     invoicesWithRecipient: InvoicesWithRecipient,
     billingData: BillingData,
+    institutionListsIndex: InstitutionListsIndex,
 ): Promise<ResultOrErrors<Transmission>> => 
     createTransmission(
         invoicesWithRecipient, 
-        billingData, 
+        billingData,
+        institutionListsIndex,
         makeNutzdatenSGBXI,
         makeDateinameSGBXI,
         makeAnwendungsreferenzSGBXI,
@@ -135,6 +144,7 @@ export const createTransmissionSGBXI = async (
 const createTransmission = async (
     invoicesWithRecipient: InvoicesWithRecipient,
     billingData: BillingData,
+    institutionListsIndex: InstitutionListsIndex,
     makeNutzdaten: NutzdatenFactory,
     makeDateiname: DateinameFactory,
     makeAnwendungsreferenz: AnwendungsreferenzFactory,
@@ -147,7 +157,7 @@ const createTransmission = async (
     );
 
     if (errors.length) {
-        return { errors, warnings };
+        return { errors: errors, warnings: warnings };
     }
 
     const { recipient } = invoicesWithRecipient;
@@ -155,29 +165,42 @@ const createTransmission = async (
     const { kassenart, sendTo, encryptTo } = recipient;
     const recipientEmail = sendTo.transmissionEmail || "";
     const sender = absender(billingData, transliteratedInvoices[0]);
+    const { testIndicator, korrekturlieferung, verarbeitungskennzeichen } = billingData;
+    const month = transliteratedInvoices[0].faelle[0].einsaetze[0].leistungsBeginn;
     const {
         datenaustauschreferenz,
         laufendeDatenannahmeImJahr,
         transferNumber,
-    } = transmissionIdentifiers(billingData, sendTo.ik);
-    const filename = makeDateiname(billingData.testIndicator, transferNumber);
+    } = transmissionIdentifiers(billingData, encryptTo.ik);
+    const filename = makeDateiname(testIndicator, transferNumber);
     const anwendungsreferenz = makeAnwendungsreferenz(
         transliterated.billingData, 
+        month,
         sender.ik, 
         kassenart, 
         laufendeDatenannahmeImJahr
     );
-    const nutzdaten = makeNutzdaten(
+    const { nutzdaten, invoices, nextRechnungsnummer, nextBelegnummer } = makeNutzdaten(
         transliterated.billingData, 
         transliteratedInvoices, 
+        institutionListsIndex,
         sender.ik, 
-        sendTo.ik, 
+        encryptTo.ik,
         datenaustauschreferenz, 
         anwendungsreferenz
     );
 
+    if (!recipientEmail) {
+        return cancelWith(error("requiredValueMissing", "recipient.sendTo.transmissionEmail"));
+    }
+
+    if (!recipient.certificate) {
+        return cancelWith(error("requiredValueMissing", "recipient.certificate"));
+    }
+
     if (!isEncodableI8(nutzdaten)) {
-        return cancelWith(error("invalidCharacters"));
+        const invalidCharacters = getNonConformingCharactersI8(nutzdaten).join(" ");
+        return cancelWith(error("invalidCharacters", undefined, { invalidCharacters }));
     }
 
     const unencryptedNutzdaten = encodeI8(nutzdaten);
@@ -186,10 +209,10 @@ const createTransmission = async (
 
     try {
         encryptedNutzdaten = await signAndEncryptMessage(
-            unencryptedNutzdaten,
+            unencryptedNutzdaten.buffer,
             billingData.senderCertificate,
             billingData.senderPrivateKey,
-            recipient.certificate
+            recipient.certificate.buffer as ArrayBuffer
         );
 
         auftragsdaten = writeAuftragsdatei({
@@ -210,22 +233,35 @@ const createTransmission = async (
     }
 
     const unencryptedPayloadFile = makeFile(unencryptedNutzdaten, filename);
-    const payloadFile = makeFile(encryptedNutzdaten, filename);
+    const payloadFile = makeFile(new Uint8Array(encryptedNutzdaten), filename);
     const instructionFile = makeFile(encodeI8(auftragsdaten), filename + ".AUF");
     const email = billingEmail(sender, recipientEmail, payloadFile, instructionFile);
+    const fileCreationDate = new Date();
 
     return {
-        warnings,
+        warnings: warnings,
         result: {
             unencryptedPayloadFile,
             payloadFile,
             instructionFile,
+            invoices,
+            anwendungsreferenz,
+            nextRechnungsnummer,
+            nextBelegnummer,
             email,
+            fileCreationDate,
+            datenaustauschreferenz,
+            laufendeDatenannahmeImJahr,
+            sender,
+            recipient,
+            verarbeitungskennzeichen,
+            korrekturlieferung: korrekturlieferung || null,
+            testIndicator,
         }
     };
 };
 
-const makeFile = (data: ArrayBuffer, name: string): File => ({ name, data });
+const makeFile = (bytes: Uint8Array, name: string): File => ({ name, bytes });
 
 const cancelWith = (error: ValidationError): { errors: ValidationError[] } => ({ errors: [error] });
 
@@ -267,6 +303,41 @@ const validateAndTransliterateForTransmission = async (
         ...invoicesWithRecipient,
         ...transliterated.invoicesWithRecipient
     }, constraintsInvoice);
+    const result = validationByType(constraints);
+
+    return {
+        errors: result.errors,
+        warnings: warnings.concat(result.warnings),
+        transliterated
+    }
+};
+
+export const validateVersicherter = (
+    versicherter: Versicherter,
+    requiresVersichertenStatus: boolean
+) => {
+    let { warnings, transliterated } = transliterateRecursively(versicherter, transliterateI8);
+
+    const constraints = constraintsVersicherter({
+        ...versicherter,
+        ...transliterated
+    }, requiresVersichertenStatus);
+    const result = validationByType(constraints);
+
+    return {
+        errors: result.errors,
+        warnings: warnings.concat(result.warnings),
+        transliterated
+    }
+};
+
+export const validateLeistungserbringer = (leistungserbringer: Leistungserbringer) => {
+    let { warnings, transliterated } = transliterateRecursively(leistungserbringer, transliterateI8);
+
+    const constraints = constraintsLeistungserbringer({
+        ...leistungserbringer,
+        ...transliterated
+    });
     const result = validationByType(constraints);
 
     return {

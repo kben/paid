@@ -1,10 +1,8 @@
 import { 
     Versicherter
 } from "../types"
-import { 
-    constraintsInstitution, 
-    constraintsVersicherter, 
-    constraintsIKToSondertarif
+import {
+    constraintsVersicherter
 } from "../validation"
 import { 
     isRequired, isDate, isArray, isVarchar, isNumber, isOptionalInt, isInt,
@@ -16,24 +14,12 @@ import {
     BaseAbrechnungsposition,
     Diagnose,
     Kostenzusage,
-    Leistungserbringer,
     Skonto,
     Verordnung, 
 } from "./types"
 
 // Einzelrechnung, Rechnung, Sammelrechnung are not validated because they will be just intermediate
 // data structures, not exposed to the user of the library
-
-export const constraintsLeistungserbringer = (leistungserbringer: Leistungserbringer) => [
-    ...constraintsInstitution(leistungserbringer),
-    isRequired(leistungserbringer, "abrechnungscode"),
-    isRequired(leistungserbringer, "tarifbereich"),
-    isRequired(leistungserbringer, "location"),
-    isRequired(leistungserbringer, "sondertarifJeKostentraegerIK"),
-    ...valueConstraints<Record<string, string>>(leistungserbringer, "sondertarifJeKostentraegerIK", constraintsIKToSondertarif),
-    isOptionalVarchar(leistungserbringer, "umsatzsteuerOrdnungsnummer", 20),
-    // umsatzsteuerBefreiung is optional
-]
 
 export const constraintsBaseAbrechnungsfall = (fall: BaseAbrechnungsfall) => [
     isRequired(fall, "versicherter"),

@@ -129,10 +129,7 @@ export const qualifikationsabhaengigeVerguetungSchluessel = {
     "1": "Pflegefachkraft",
     "2": "hauswirtschaftliche Fachkraft",
     "3": "ergänzende Hilfen",
-    "4": "Bundesfreiwilligendienst",
-    "5": "Praktikanten",
-    "6": "Freiwilliges soziales Jahr",
-    "7": "ISB Individuelle Schwerbehindertenbetreuung/-assistenz",
+    "4": "Bundesfreiwilligendienst, Praktikanten, Freiwilliges soziales Jahr (FSJ) oder Individuelle Schwerbehindertenbetreuung (ISB)",
     "8": "Fachkraft für Betreuung",
 }
 export type QualifikationsabhaengigeVerguetungSchluessel = keyof typeof qualifikationsabhaengigeVerguetungSchluessel
@@ -170,6 +167,7 @@ export const zeiteinheitSchluessel = {
     "3": "15 Minuten",
     "4": "Stunde",
     "5": "Tag",
+    "6": "10 Minuten",
 }
 export type ZeiteinheitSchluessel = keyof typeof zeiteinheitSchluessel
 
@@ -187,6 +185,8 @@ export const zeitartSchluessel = {
     "0": "Ergänzende Unterstützungsleistungen für DiPA",
     "A": "Beratungsbesuch vor Ort",
     "B": "Beratungsbesuch Videokonferenz",
+    "C": "Hilfen zur Haushaltsführung (hauswirtschaftliche Versorgung) als Poolleistung",
+    "D": "Pflegerische Betreuungsmaßnahmen (häusliche Betreuung) als Poolleistung",
 }
 export type ZeitartSchluessel = keyof typeof zeitartSchluessel
 
@@ -218,11 +218,11 @@ export const entlastungsleistungSchluessel = {
 export type EntlastungsleistungSchluessel = keyof typeof entlastungsleistungSchluessel
 
 /** 2.7.7 Schlüssel Leistung: Pauschale (Beratungsbesuch nach § 37 Abs. 3) */
-export const beratungsbesuchPauschaleLeistungSchluessel = {
+export const beratungsbesuchSchluessel = {
     "1": "Einsatzpauschale (Beratung vor Ort)",
     "2": "Videokonferenz",
 }
-export type BeratungsbesuchPauschaleLeistungSchluessel = keyof typeof beratungsbesuchPauschaleLeistungSchluessel
+export type BeratungsbesuchSchluessel = keyof typeof beratungsbesuchSchluessel
 
 /** 2.7.8 Schlüssel Leistung: Sonstige */
 export const sonstigeLeistungSchluessel = {
@@ -301,7 +301,7 @@ export const zuschlagSchluessel = {
     "03": "Anteilige Wegegebühren bei betreutes Wohnen",
     "04": "Höhere Vergütung für Einsatz einer zweiten Pflegekraft ",
     "05": "Zu-/Abwahl von einzelnen Leistungen",
-    "06": "2 Personen",
+    "06": "ab 2 pflegebedürftige Personen",
     "07": "Demente",
     "08": "Apalliker",
     "09": "Härtefälle",
@@ -317,6 +317,8 @@ export const zuschlagSchluessel = {
     "19": "MRE-Zuschlag",
     "21": "Ungünstige Zeiten",
     "22": "Ungünstige Tage",
+    "23": "Ausbildungskosten Pflegeassistenzausbildung",
+    "24": "Ausbildungskosten (sonstige)",
 }
 export type ZuschlagSchluessel = keyof typeof zuschlagSchluessel
 
@@ -361,10 +363,9 @@ export type ZuschlagsberechnungSchluessel = keyof typeof zuschlagsberechnungSchl
 
 /** 2.17 Schlüssel Ersatz-Beschäftigtennummer */
 export const ersatzbeschaeftigtennummerSchluessel = {
-    "999999999": "Leiharbeitnehmer(in) ohne Beschäftigtennummer nach § 293 Abs. 8 Satz 2 SGB V",
-    "999999998": "neuer Beschäftigte(r), die/der noch nicht über eine Beschäftigtennummer nach § 293 Abs. 8 Satz 2 SGB V verfügt",
-    "999999997": "Beschäftigtennummer nach § 293 Abs. 8 Satz 2 SGB V fehlt aus sonstigem Grund",
-    "999999996": "Auszubildende(r) ohne Beschäftigtennummer nach § 293 Abs. 8 Satz 2 SGB V",
+    999999998: "neue(r) Beschäftigte(r) oder neu beim Pflegedienst Tätige(r) ohne Beschäftigungsverhältnis, die/der noch nicht über eine Beschäftigtennummer nach § 293 Abs. 8 Satz 2 SGB V verfügt",
+    999999997: "Beschäftigtennummer nach § 293 Abs. 8 Satz 2 SGB V fehlt aus sonstigem Grund",
+    999999996: "Auszubildende(r) ohne Beschäftigtennummer nach § 293 Abs. 8 Satz 2 SGB V",
 }
 export type ErsatzbeschaeftigtennummerSchluessel = keyof typeof ersatzbeschaeftigtennummerSchluessel
 
@@ -401,6 +402,8 @@ export const fehlercodesSchluessel = {
     "02007": "Datumsangabe größer Verarbeitungsdatum unzulässig",
     "02008": "Falscher Nachrichtentyp",
     "02009": "Leistungsnachweis-IDs zwischen Element „Abrechnungsbegründende Unterlage“ und entsprechendem Leistungsnachweis nicht identisch",
+    "02010": "PRODMOD-ID nicht gefunden",
+    "02011": "PRODMOD-ID außerhalb der Gültigkeit",
     "03002": "anderer technischer Fehler (Erläuterung siehe Fehlertext)",
 }
 export type FehlercodesSchluessel = keyof typeof fehlercodesSchluessel
@@ -423,6 +426,11 @@ export const fehlendeUnterschriftSchluessel = {
     "4": "Sonstiges",
 }
 export type FehlendeUnterschriftSchluessel = keyof typeof fehlendeUnterschriftSchluessel
+
+/** 3.4 Schlüssel logische Version */
+export const logischeVersionSchluessel = "1.1.0"
+
+export type LogischeVersionSchluessel = typeof logischeVersionSchluessel
 
 /** 3.5 Schlüssel Inhaltstyp (fachlicher Inhalt der Datei) */
 export const inhaltstypSchluessel = {

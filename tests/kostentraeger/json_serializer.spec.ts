@@ -1,5 +1,5 @@
 import { deserializeInstitutionLists, serializeInstitutionLists } from "../../src/kostentraeger/json_serializer"
-import { base64ToArrayBuffer } from "../../src/pki/utils"
+import { arrayBufferEquals, base64ToArrayBuffer } from "../../src/pki/utils"
 import { InstitutionList } from "../../src/kostentraeger/types"
 import { AsnParser, AsnSerializer } from "@peculiar/asn1-schema"
 import { Certificate } from "@peculiar/asn1-x509"
@@ -23,10 +23,19 @@ describe("Institution lists with certificates JSON serializer", () => {
                 validityTo: new Date("2088-10-10"),
                 certificates: [certificate],
                 addresses: [
-                    { postcode: 12345, place: "Humburg" }
+                    { postcode: "12345", place: "Humburg" }
                 ],
-                contacts: []
-            }]
+                contacts: [],
+                vertragskassennummer: null,
+                validityFrom: null,
+                transmissionEmail: null,
+                kim: null,
+                kostentraegerLinks: null,
+                datenannahmestelleLinks: null,
+                untrustedDatenannahmestelleLinks: null,
+                papierannahmestelleLinks: null
+            }],
+            caCertificates: [],
         }]
 
         const str = serializeInstitutionLists(list1)
@@ -41,18 +50,6 @@ describe("Institution lists with certificates JSON serializer", () => {
         expect(str2).toEqual(str)
     })
 })
-
-function arrayBufferEquals (buf1: ArrayBuffer, buf2: ArrayBuffer)
-{
-    if (buf1.byteLength != buf2.byteLength) { return false }
-    var bytes1 = new Int8Array(buf1)
-    var bytes2 = new Int8Array(buf2)
-    for (var i = 0; i != buf1.byteLength; i++)
-    {
-        if (bytes1[i] != bytes2[i]) { return false }
-    }
-    return true
-}
 
 const certificate = AsnParser.parse(
     base64ToArrayBuffer(exampleKostentraegerCertificatePEM()),

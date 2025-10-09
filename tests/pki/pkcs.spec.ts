@@ -168,7 +168,7 @@ describe("PKI PKCS#7 signing and encrypting cryptographic messages", () => {
         expect(result).toBeDefined();
 
         const { certificationRequestFile, publicKeyHash } = result!;
-        const certificationRequest = new CertificationRequest({ schema: fromBER(certificationRequestFile.data).result });
+        const certificationRequest = new CertificationRequest({ schema: fromBER(certificationRequestFile.bytes).result });
 
         expect(certificationRequestFile.name).toEqual(ik.substring(0, 8) + ".p10");
         expect(certificationRequest.version).toEqual(0);
@@ -220,7 +220,8 @@ describe("PKI PKCS#7 signing and encrypting cryptographic messages", () => {
             type: ValidationResultType.Warning,
             path: ["contactPersonName"],
             params: {
-                transliteratedValue: "Rene Francois Lacote Gruesse Boris Nikolaevich Eltsin Naeroy Tran Hung Dao Dimitris Fotopoylos knniyakumri mhasmumd dmnhwr ShenZhen HwaSeongSi saitama"
+                transliteratedValue: "Rene Francois Lacote Gruesse Boris Nikolaevich Eltsin Naeroy Tran Hung Dao Dimitris Fotopoylos knniyakumri mhasmumd dmnhwr ShenZhen HwaSeongSi saitama",
+                value: contactPersonName
             }
         }, {
             code: "textTruncated",

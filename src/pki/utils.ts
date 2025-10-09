@@ -1,6 +1,7 @@
 import { fromBER } from "asn1js";
 import { Certificate, CertificationRequest } from "pkijs";
 import { initCrypto } from "./crypto";
+import { AsnSerializer } from "@peculiar/asn1-schema";
 
 export function base64ToArrayBuffer(base64: string): ArrayBuffer {
     const binaryString = atob(base64);
@@ -28,7 +29,10 @@ export const bufferToCertificate = (certificate: ArrayBuffer): Certificate =>
 export const bufferToCertificationRequest = (certificate: ArrayBuffer) =>
     CertificationRequest.fromBER(certificate);
 
-export const importPKCS8 = async (key: ArrayBuffer): Promise<CryptoKey> =>
+export const certificateToBuffer = (certificate: Certificate) =>
+    certificate.toSchema().toBER();
+
+export const importPKCS8 = async (key: ArrayBuffer) =>
     await initCrypto().importKey(
         "pkcs8", 
         key, {
@@ -36,12 +40,12 @@ export const importPKCS8 = async (key: ArrayBuffer): Promise<CryptoKey> =>
             hash: {
                 name: "SHA-256"
             }
-        } as RsaHashedImportParams,
+        },
         true, 
         ["sign", "verify"]
     );
 
-export const exportPKCS8 = async (key: CryptoKey): Promise<ArrayBuffer> =>
+export const exportPKCS8 = async (key: any): Promise<ArrayBuffer> =>
     await initCrypto().exportKey("pkcs8", key);
 
 export const bufferToHex = (buffer: ArrayBuffer): string =>
@@ -53,3 +57,13 @@ export const keyToPEM = async (key: ArrayBuffer): Promise<string> => {
     const base64 = arrayBufferToBase64(key);
     return `-----BEGIN PRIVATE KEY-----\n${base64}\n-----END PRIVATE KEY-----`;
 };
+
+export function arrayBufferEquals(buf1: ArrayBuffer, buf2: ArrayBuffer) {
+    if (buf1.byteLength != buf2.byteLength) { return false }
+    var bytes1 = new Int8Array(buf1)
+    var bytes2 = new Int8Array(buf2)
+    for (var i = 0; i != buf1.byteLength; i++) {
+        if (bytes1[i] != bytes2[i]) { return false }
+    }
+    return true
+}

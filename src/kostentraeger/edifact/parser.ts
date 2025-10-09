@@ -107,7 +107,7 @@ function validateLinks(institutions: KOTRMessage[]): string[] {
                 }
                 /* the link target to every link to a Datenannahme with capacity to decrypt must 
                    either accept data themselves or lead to one that does in one link-step */
-                if (vkg.ikVerknuepfungsartSchluessel == "03") {
+                if (vkg.ikVerknuepfungsartSchluessel == "03" && vkg.datenlieferungsartSchluessel == "07") {
                     if (!acceptsData) {
                         const butALinkAcceptsData = institution.vkgList.some((vkg) => {
                             if (vkg.ikVerknuepfungsartSchluessel == "02") {
@@ -139,6 +139,7 @@ function isInstitutionAcceptingData(institution: KOTRMessage): boolean {
 function parseMessage(message: Message): KOTRMessageParseResult {
     const messageId = parseInt(message.header[0][0])
     const messageTxt = `message ${messageId} -`
+    let idkTxt = ""
     const messageType = message.header[1][0]
     if (messageType != "KOTR") {
         throw new Error(`${messageTxt} Unknown message type ${messageType}`)
@@ -175,6 +176,7 @@ function parseMessage(message: Message): KOTRMessageParseResult {
             switch(tag) {
                 case "IDK": // Identifikation
                     idk = readIDK(elements)
+                    idkTxt = `IK ${idk.ik} – `
                     break
                 case "VDT": // Verwaltungsdaten 
                     /* Simplification:
@@ -198,7 +200,7 @@ function parseMessage(message: Message): KOTRMessageParseResult {
                         ++vkgCount
                         vkgList.push(readVKG(elements))
                     } catch(e: any) {
-                        warnings.push(messageTxt + " skipped invalid VKG " + vkgCount + ": " + e.message)
+                        warnings.push(idkTxt + messageTxt + " skipped invalid VKG " + vkgCount + ": " + e.message)
                     }
                     break
                 case "NAM": // Name
@@ -209,7 +211,7 @@ function parseMessage(message: Message): KOTRMessageParseResult {
                         ++ansCount
                         ansList.push(readANS(elements))
                     } catch(e: any) {
-                        warnings.push(messageTxt + " skipped invalid ANS " + ansCount + ": " + e.message)
+                        warnings.push(idkTxt + messageTxt + " skipped invalid ANS " + ansCount + ": " + e.message)
                     }
                     break
                 case "ASP": // Ansprechpartner
@@ -220,7 +222,7 @@ function parseMessage(message: Message): KOTRMessageParseResult {
                         ++uemCount
                         uemList.push(readUEM(elements))
                     } catch(e: any) {
-                        warnings.push(messageTxt + " skipped invalid UEM " + uemCount + ": " + e.message)
+                        warnings.push(idkTxt + messageTxt + " skipped invalid UEM " + uemCount + ": " + e.message)
                     }
                     break
                 case "DFU": // Datenfernübertragung
@@ -228,34 +230,39 @@ function parseMessage(message: Message): KOTRMessageParseResult {
                         dfuList.push(readDFU(elements))
                     } catch(e: any) {
                         const index = parseInt(elements[0])
-                        warnings.push(messageTxt + " skipped invalid DFU " + index + ": " + e.message)
+                        warnings.push(idkTxt + messageTxt + " skipped invalid DFU " + index + ": " + e.message)
+                    }
+                    const dfuProtokoll = dfuList.at(-1)?.dfuProtokollSchluessel
+                    const encoding = uemList.at(-1)?.uebermittlungszeichensatzSchluessel || ""
+                    if ((dfuProtokoll == "070" && !["I8", "99"].includes(encoding)) || (dfuProtokoll == "080" && encoding != "U8")) {
+                        warnings.push(idkTxt + messageTxt + ` unexpected encoding "${encoding}" for DFÜ-Protokoll "${dfuProtokoll}"`)
                     }
                     break
             }
         } catch (error: any) {
-            error.message = messageTxt + " " + error.message
+            error.message = idkTxt + messageTxt + " " + error.message
             throw error
         }
     })
 
     if (!idk) {
-        throw new Error(`${messageTxt} The mandatory segment "IDK" is missing`)
+        throw new Error(idkTxt + `${messageTxt} The mandatory segment "IDK" is missing`)
     }
     if (!vdt) {
-        throw new Error(`${messageTxt} The mandatory segment "VDT" is missing`)
+        throw new Error(idkTxt + `${messageTxt} The mandatory segment "VDT" is missing`)
     }
     if (!nam) {
-        throw new Error(`${messageTxt} The mandatory segment "NAM" is missing`)
+        throw new Error(idkTxt + `${messageTxt} The mandatory segment "NAM" is missing`)
     }
     if (!fkt) {
-        throw new Error(`${messageTxt} The mandatory segment "FKT" is missing`)
+        throw new Error(idkTxt + `${messageTxt} The mandatory segment "FKT" is missing`)
     }
     if (ansList.length == 0) {
-        throw new Error(`${messageTxt} At least one "ANS" element is required`)
+        throw new Error(idkTxt + `${messageTxt} At least one "ANS" element is required`)
     }
     uemList = uemList.filter((uem, index) => {
         if (uem.uebermittlungsmediumSchluessel == "1" && dfuList.length == 0) {
-            warnings.push(`${messageTxt} skipped invalid UEM ${index+1}: Refers to a non-existing DFU`)
+            warnings.push(idkTxt + `${messageTxt} skipped invalid UEM ${index+1}: Refers to a non-existing DFU`)
             return false
         } else {
             return true
@@ -336,7 +343,7 @@ const readVKG = (e: string[]): VKG => {
     if (e4 && !datenlieferungsArtSchluessel.hasOwnProperty(e4)) {
         throw new Error(`Unknown DatenlieferungsartSchluessel "${e4}"`)
     }
-    if ((e0 == "02" || e0 == "03") && e4 != "07") {
+    if ((e0 == "02" || e0 == "03") && !(e4 == "07" || e4 == "30")) {
         throw new Error(`Links to data acceptance office that does not accept data`)
     }
     if (e0 == "09" && e4 == "07") {
@@ -406,7 +413,7 @@ const readANS = (e: string[]): ANS => {
     }
     return {
         anschriftartSchluessel: e0 as AnschriftartSchluessel,
-        postcode: parseInt(e[1]),
+        postcode: e[1],
         place: e[2],
         address: e[3] || undefined
     }
