@@ -1,39 +1,51 @@
-AO06Q122.ke1
-  message 185 - skipped invalid UEM 1: Refers to a non-existing DFU
-  message 186 - skipped invalid UEM 1: Refers to a non-existing DFU
-  IK 103411401 (AOK Westfalen-Lippe) links to IK 102114819 for data but that IK does not accept data
+AO06Q425.ke0
+  IK 661200139 – message 184 - skipped invalid UEM 1: Refers to a non-existing DFU
+  IK 661400051 – message 185 - skipped invalid UEM 1: Refers to a non-existing DFU
+  IK 180295017 (AOK Nordost Region MVP) has no Papierannahmestelle for Datenlieferungsart "28" (Urbelege zu einer digitalen Abrechnung)
+  IK 180696012 (Pflegekasse AOK Nordost) has no Papierannahmestelle for Datenlieferungsart "28" (Urbelege zu einer digitalen Abrechnung)
+  IK 184212505 (Pflegek. AOK Rheinland/Hamburg) has no Papierannahmestelle for Datenlieferungsart "28" (Urbelege zu einer digitalen Abrechnung)
+  IK 184212516 (Pflegek. AOK Rheinland/Hamburg) has no Papierannahmestelle for Datenlieferungsart "28" (Urbelege zu einer digitalen Abrechnung)
+  IK 185313145 (AOK Hessen Pflegekasse) has no Papierannahmestelle for Datenlieferungsart "28" (Urbelege zu einer digitalen Abrechnung)
+  IK 186710503 (AOK Baden-Württemberg Pflegeka) has no Papierannahmestelle
+  IK 189319309 (Pflegekasse AOK LD Saarland) has no Papierannahmestelle for Datenlieferungsart "28" (Urbelege zu einer digitalen Abrechnung)
 
-IK06Q122.ke0
-  Message 37 - Unsupported transmission zeichensatz "I7"
+BK06Q325.ke0
+  IK 102193212 – message 110 - unexpected encoding "I8" for DFÜ-Protokoll "080"
+  IK 661430035 – message 207 - unexpected encoding "I8" for DFÜ-Protokoll "080"
+  IK 186928388 (Südzucker BKK / Ost) links to IK 186936311 for data but there is no KIM address
+  IK 186331593 (BKK evm Pflegekasse) has no links with Datenlieferungsart "07" (DTA), but with "30" (KIM)
+  IK 188833674 (Koenig & Bauer BKK Pflegekasse) has no links with Datenlieferungsart "07" (DTA), but with "30" (KIM)
+  IK 188831386 (Koenig & Bauer BKK Pflegekasse) has no links with Datenlieferungsart "07" (DTA), but with "30" (KIM)
 
-LK06Q321.ke0
-  message 18 - skipped invalid VKG 3: Unknown LeistungserbringergruppeSchluessel "3"
-  message 18 - skipped invalid VKG 4: Unknown LeistungserbringergruppeSchluessel "3"
-  message 18 - skipped invalid VKG 5: Unknown LeistungserbringergruppeSchluessel "3"
-  message 18 - skipped invalid VKG 6: Unknown LeistungserbringergruppeSchluessel "3"
+IK06Q325.ke0
+  IK 661200093 – message 37 - unexpected encoding "I7" for DFÜ-Protokoll "070"
+  IK 661430035 – message 39 - unexpected encoding "I8" for DFÜ-Protokoll "080"
 
-EK06Q122.ke0
-  IK 183170002 (hkk) links to IK 183170002 for data but there is not any certificate for encryption
-  IK 183170002 (hkk) links to IK 183170002 for data but there is not any certificate for encryption
-  IK 183170002 (hkk) links to IK 183170002 for data but there is not any certificate for encryption
-  IK 183170002 (hkk) links to IK 183170002 for data but there is not any certificate for encryption
-  IK 183170002 (hkk) links to IK 183170002 for data but there is not any certificate for encryption
-  IK 183170002 (hkk) links to IK 183170002 for data but there is not any certificate for encryption
-  IK 183170002 (hkk) links to IK 183170002 for data but there is not any certificate for encryption
+LK06Q425.ke0
+  IK 189008837 – message 18 - skipped invalid VKG 4: Unknown LeistungserbringergruppeSchluessel "3"
+  IK 189008837 – message 18 - skipped invalid VKG 5: Unknown LeistungserbringergruppeSchluessel "3"
+  IK 189008837 – message 18 - skipped invalid VKG 6: Unknown LeistungserbringergruppeSchluessel "3"
+  IK 189008837 – message 18 - skipped invalid VKG 7: Unknown LeistungserbringergruppeSchluessel "3"
+  IK 189008837 (LKK N.bayern/Oberpf. u. Schwa.) has no Papierannahmestelle
 
-AO05Q122.ke1
-  message 106 - skipped invalid DFU 1: Unknown DFUProtokollSchluessel "011"
-  message 106 - skipped invalid DFU 2: Unknown DFUProtokollSchluessel "011"
-  message 106 - skipped invalid DFU 3: Unknown DFUProtokollSchluessel "011"
-  message 136 - skipped invalid DFU 1: Unknown DFUProtokollSchluessel "011"
-  message 153 - skipped invalid DFU 1: Unknown DFUProtokollSchluessel "011"
-  message 153 - skipped invalid DFU 2: Unknown DFUProtokollSchluessel "004"
-  message 153 - skipped invalid DFU 3: Unknown DFUProtokollSchluessel "011"
-  message 202 - skipped invalid UEM 1: Refers to a non-existing DFU
+EK06Q425.ke0
+  IK 660510336 – message 181 - unexpected encoding "I8" for DFÜ-Protokoll "080"
+  IK 661430035 – message 182 - unexpected encoding "I8" for DFÜ-Protokoll "080"
 
-BK05Q122.ke6
-  IK 104526376 (VIACTIV Krankenkasse) links to IK 102193234 for data but neither that IK nor an IK it links to accepts data
-  IK 104529255 (VIACTIV Krankenkasse Ost) links to IK 102193234 for data but neither that IK nor an IK it links to accepts data
-  IK 104526376 (VIACTIV Krankenkasse) links to IK 102193234 for data but neither that IK nor an IK it links to accepts SMTP (email)
-  IK 104529255 (VIACTIV Krankenkasse Ost) links to IK 102193234 for data but neither that IK nor an IK it links to accepts SMTP (email)
+AO05Q425.ke0
+  IK 106198626 – message 106 - skipped invalid DFU 1: Unknown DFUProtokollSchluessel "011"
+  IK 106198626 – message 106 - skipped invalid DFU 2: Unknown DFUProtokollSchluessel "011"
+  IK 106198626 – message 106 - skipped invalid DFU 3: Unknown DFUProtokollSchluessel "011"
+  IK 107299005 – message 136 - skipped invalid DFU 1: Unknown DFUProtokollSchluessel "011"
+  IK 108310400 – message 153 - skipped invalid DFU 1: Unknown DFUProtokollSchluessel "011"
+  IK 108310400 – message 153 - skipped invalid DFU 2: Unknown DFUProtokollSchluessel "004"
+  IK 108310400 – message 153 - skipped invalid DFU 3: Unknown DFUProtokollSchluessel "011"
+  IK 661400051 – message 201 - skipped invalid UEM 1: Refers to a non-existing DFU
+
+BK05Q225.ke1
+  IK 103724238 – message 77 - skipped invalid VKG 3: Links to data acceptance office that does not accept data
+  IK 103724238 – message 77 - skipped invalid VKG 4: Links to data acceptance office that does not accept data
+  IK 103724249 – message 78 - skipped invalid VKG 17: Links to paper acceptance office that does not accept paper
+  IK 103724249 – message 78 - skipped invalid VKG 22: Links to paper acceptance office that does not accept paper
+  IK 103724249 – message 78 - skipped invalid VKG 26: Links to paper acceptance office that does not accept paper
 
