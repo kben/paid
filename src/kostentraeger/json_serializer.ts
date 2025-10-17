@@ -41,8 +41,8 @@ export function toClassInstitutionLists(lists: ReturnType<typeof toPlainInstitut
                 AsnParser.parse(base64ToArrayBuffer(certificate), Certificate)
             ) || null
         })),
-        caCertificates: list.caCertificates.map(certificate =>
+        caCertificates: list.caCertificates?.map(certificate =>
             bufferToCertificate(base64ToArrayBuffer(certificate))
-        )
+        ) || []
     }));
 }
