@@ -73,12 +73,14 @@ export type {
     AbrechnungscodeGruppenschluessel as AbrechnungscodeGruppenschluesselSGBV,
     AbrechnungscodeSchluessel as AbrechnungscodeSchluesselSGBV,
     TarifbereichSchluessel as TarifbereichSchluesselSGBV,
+    VersichertenstatusSchluessel,
 } from "./sgb-v/codes";
 export {
     abrechnungscodeSchluessel as abrechnungscodeSchluesselSGBV,
     getAbrechnungscodeEinzelschluessel,
     getAbrechnungscodeGruppenschluessel,
     tarifbereichSchluessel as tarifbereichSchluesselSGBV,
+    versichertenstatusSchluessel,
 } from "./sgb-v/codes";
 
 export type { KassenartSchluessel, KassenartShortSchluessel } from "./kostentraeger/filename/codes";

@@ -338,6 +338,13 @@ export type TarifbereichSchluessel = keyof typeof tarifbereichSchluessel
 }
 export type SummenstatusSchluessel = keyof typeof summenstatusSchluessel
 
+export const versichertenstatusSchluessel = {
+    "1": summenstatusSchluessel["11"],
+    "3": summenstatusSchluessel["31"],
+    "5": summenstatusSchluessel["51"],
+}
+export type VersichertenstatusSchluessel = keyof typeof versichertenstatusSchluessel
+
 const versichertenstatusToSummenstatus = new Map<string, SummenstatusSchluessel>([
     ["1", "11"],
     ["3", "31"],
