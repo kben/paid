@@ -64,6 +64,26 @@ export const isDate = <T>(obj: T, key: keyof T): ValidationResult => {
     }
 }
 
+export const isBirthday = <T>(obj: T, key: keyof T): ValidationResult => {
+    const result = isDate(obj, key);
+
+    if (result) {
+        return result;
+    } else {
+        const date = obj[key] as Date;
+
+        if (Date.now() <= date.getTime()) {
+            return error("dateTooLate", key, { 
+                max: new Date().toISOString()
+            })
+        } else if (date.getTime() < new Date().setFullYear(new Date().getFullYear() - 130)) {
+            return error("dateTooEarly", key, { 
+                min: new Date(new Date().setFullYear(new Date().getFullYear() - 130)).toISOString()
+            })
+        }
+    }
+}
+
 export const isOptionalNumber = <T>(obj: T, key: keyof T, min: number, maxExclusive: number): ValidationResult => 
     obj[key] == undefined ? undefined : isNumber(obj, key, min, maxExclusive)
 

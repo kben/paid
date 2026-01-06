@@ -2,9 +2,10 @@ import { BillingData, Address, Ansprechpartner, Institution, InvoicesWithRecipie
 import { Institution as KostentraegerInstitution } from "./kostentraeger/types"
 import { 
     arrayConstraints, valueConstraints,
-    isArray, isChar, isVarchar, isDate, isIK, isInt, isRequired,
+    isArray, isChar, isVarchar, isIK, isInt, isRequired,
     isOptionalChar, isOptionalVarchar,
     error, isTruncatedIfTooLong, isRechnungsnummer, isOptionalInt,
+    isBirthday,
 } from "./validation/utils"
 import { isValidCertificate } from "./pki/validation"
 import { Invoice, Leistungserbringer } from "./sgb-xi/types"
@@ -52,7 +53,7 @@ const constraintsAnsprechpartner = (ansprechpartner: Ansprechpartner, index: num
 export const constraintsVersicherter = (versicherter: Versicherter, requiresVersichertenStatus: boolean) => [
     isTruncatedIfTooLong(isVarchar(versicherter, "firstName", 30)), // 45 for SGB XI 
     isTruncatedIfTooLong(isVarchar(versicherter, "lastName", 45)), // 47 for SGB V
-    isDate(versicherter, "birthday"),
+    isBirthday(versicherter, "birthday"),
     isIK(versicherter, "krankenkasseIK"),
     /* versichertennummer is either required or if not specified, address is required */
     ...(!versicherter.versichertennummer
