@@ -28,7 +28,11 @@ from 2020-07-01, to be applied from **2020-09-01**
 
 - Gemeinsame Grundsätze Technik, Anlage 16:  
 [Security Schnittstelle (SECON)](https://gkv-datenaustausch.de/media/dokumente/standards_und_normen/technische_spezifikationen/Anlage_16_-_Security_Schnittstelle.pdf)  
-from **2024-10-10**, to be applied from **2025-01-01**
+from **2025-09-02**, to be applied from **2026-01-01**
+
+- Gemeinsame Grundsätze Technik, Änderungshistorie:  
+[Änderungshistorie](https://www.gkv-datenaustausch.de/media/dokumente/standards_und_normen/gg_technik/Aenderungshistorie.pdf)  
+from **2025-11-06**
 
 ### Arbeitgeberverfahren, DEÜV – Gemeinsames Rundschreiben
 
