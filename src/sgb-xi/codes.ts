@@ -99,7 +99,7 @@ export const leistungsartSchluessel = {
     "06": "Pflegehilfsmittel",
     "07": "Verhinderungspflege",
     "08": "Zuschuss nach § 43 Abs. 3 SGB XI",
-    "09": "Beratungsbesuch nach § 37 Abs. 3 SGB XI, in der Erprobungsphase ist die Abrechnung des Beratungsbesuches optional",
+    "09": "Beratungsbesuch nach § 37 Abs. 3 SGB XI",
     "10": "Entlastungsleistungen nach § 45b SGB XI",
     "11": "Beratungsgutschein nach § 7b SGB XI",
     "12": "Wohngruppenzuschlag nach § 38a SGB XI", 
