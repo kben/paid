@@ -27,21 +27,28 @@ export const calculateInvoice = (invoice: Invoice) => invoice.faelle
         return result;
     }, makeAmounts());
 
-export const calculateFall = (fall: Abrechnungsfall) => fall.einsaetze
-    .flatMap(einsatz => einsatz.leistungen)
-    .reduce((result, leistung) => {
-        const value = leistung.einzelpreis * leistung.anzahl;
-        const zuzahlungsbetrag = calculateZuzahlungsbetrag(leistung);
-        const beihilfebetrag = 0;
-        const mehrwertsteuer = calculateMehrwehrtsteuer(leistung);
-        const gesamtbruttobetrag = value + mehrwertsteuer;
-        result.gesamtbruttobetrag += gesamtbruttobetrag;
-        result.rechnungsbetrag += gesamtbruttobetrag - zuzahlungsbetrag - beihilfebetrag;
-        result.zuzahlungsbetrag += zuzahlungsbetrag;
-        result.beihilfebetrag += beihilfebetrag;
-        result.mehrwertsteuerbetrag += mehrwertsteuer;
-        return result;
-    }, makeAmounts());
+export const calculateFall = (fall: Abrechnungsfall) => {
+    // § 28 Abs. 2 SGB XI: Bei Beihilfeberechtigten übernimmt die Pflegekasse die
+    // zustehenden Leistungen nur zur Hälfte; die andere Hälfte trägt die Beihilfe.
+    const beihilfefaktor = fall.beihilfeberechtigt ? 0.5 : 0;
+    return fall.einsaetze
+        .flatMap(einsatz => einsatz.leistungen)
+        .reduce((result, leistung) => {
+            const value = leistung.einzelpreis * leistung.anzahl;
+            const zuzahlungsbetrag = calculateZuzahlungsbetrag(leistung);
+            const mehrwertsteuer = calculateMehrwehrtsteuer(leistung);
+            const gesamtbruttobetrag = value + mehrwertsteuer;
+            // Beihilfebetrag = halber Nettobetrag (nach Zuzahlung); Rechnungsbetrag
+            // an die Kasse = Gesamtbrutto − Zuzahlung − Beihilfebetrag.
+            const beihilfebetrag = (gesamtbruttobetrag - zuzahlungsbetrag) * beihilfefaktor;
+            result.gesamtbruttobetrag += gesamtbruttobetrag;
+            result.rechnungsbetrag += gesamtbruttobetrag - zuzahlungsbetrag - beihilfebetrag;
+            result.zuzahlungsbetrag += zuzahlungsbetrag;
+            result.beihilfebetrag += beihilfebetrag;
+            result.mehrwertsteuerbetrag += mehrwertsteuer;
+            return result;
+        }, makeAmounts());
+};
 
 const calculateZuzahlungsbetrag = (leistung: Leistung): number => {
     if (leistung.verguetungsart == "05") {
