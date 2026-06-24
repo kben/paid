@@ -64,11 +64,17 @@ export type Leistungserbringer = Institution & {
 export type Abrechnungsfall = {
     versicherter: Versicherter
     kostentraegerIK: string | null
-    /** 3 characters identifying a specific Vergütungsvereinbarung with the Kostenträger; 
+    /** 3 characters identifying a specific Vergütungsvereinbarung with the Kostenträger;
      * defaults to "000" if empty. */
     tarifkennzeichen: string
     belegnummer: string | null
     pflegegrad: PflegegradSchluessel | null
+    /** Beihilfeberechtigt nach § 28 Abs. 2 SGB XI (Mitglied der sozialen
+     *  Pflegeversicherung mit Beihilfeanspruch): die Pflegekasse übernimmt die
+     *  zustehenden Leistungen nur zur Hälfte. Ist dies gesetzt, wird der
+     *  Beihilfebetrag (= andere Hälfte) ausgewiesen und der Rechnungsbetrag
+     *  entsprechend gemindert. Default: false. */
+    beihilfeberechtigt?: boolean
     einsaetze: Einsatz[]
 }
 
