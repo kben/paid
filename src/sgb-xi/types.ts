@@ -72,8 +72,10 @@ export type Abrechnungsfall = {
     /** Beihilfeberechtigt nach § 28 Abs. 2 SGB XI (Mitglied der sozialen
      *  Pflegeversicherung mit Beihilfeanspruch): die Pflegekasse übernimmt die
      *  zustehenden Leistungen nur zur Hälfte. Ist dies gesetzt, wird der
-     *  Beihilfebetrag (= andere Hälfte) ausgewiesen und der Rechnungsbetrag
-     *  entsprechend gemindert. Default: false. */
+     *  Nettobetrag des Falls (nach Zuzahlung) in ganzen Cent geteilt: der
+     *  Rechnungsbetrag an die Pflegekasse ist die kaufmännisch gerundete Hälfte,
+     *  der ausgewiesene Beihilfebetrag der Rest. Beide zusammen ergeben damit
+     *  immer den Gesamtbetrag. Default: false. */
     beihilfeberechtigt?: boolean
     einsaetze: Einsatz[]
 }
