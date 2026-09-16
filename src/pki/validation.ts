@@ -16,7 +16,7 @@ export const isValidCertificate = async <T>(
     property: keyof T, 
     issuerCertificateBinary?: ArrayBuffer
 ): Promise<ValidationError[]> => {
-    const certificateBinary = obj[property] as unknown as Uint8Array | ArrayBuffer;
+    const certificateBinary = obj[property] as unknown as Uint8Array;
     let notAfter: Date | undefined = undefined;
     let notBefore: Date | undefined = undefined;
     let verified = false;
@@ -31,8 +31,7 @@ export const isValidCertificate = async <T>(
 
     try {
         initCrypto();
-        const buffer = certificateBinary instanceof Uint8Array ? certificateBinary.buffer : certificateBinary;
-        const certificate = bufferToCertificate(buffer);
+        const certificate = bufferToCertificate(certificateBinary);
         notAfter = certificate.notAfter.type == 0
             ? certificate.notAfter.value
             : undefined;
