@@ -75,7 +75,9 @@ export type Abrechnungsfall = {
      *  Nettobetrag des Falls (nach Zuzahlung) in ganzen Cent geteilt: der
      *  Rechnungsbetrag an die Pflegekasse ist die kaufmännisch gerundete Hälfte,
      *  der ausgewiesene Beihilfebetrag der Rest. Beide zusammen ergeben damit
-     *  immer den Gesamtbetrag. Default: false. */
+     *  immer den Gesamtbetrag. Geteilt wird ein Nettobetrag, der bereits aus je
+     *  Leistung auf ganze Cent gerundeten Werten besteht (siehe anzahl), sodass
+     *  jeder ausgewiesene Betrag ein exakter Cent ist. Default: false. */
     beihilfeberechtigt?: boolean
     einsaetze: Einsatz[]
 }
@@ -108,7 +110,11 @@ type BaseLeistung = {
 
     /** Price of one service provided */
     einzelpreis: number
-    /** Number of things done, f.e. 3x check blood pressure, 3x 15 minutes etc. */
+    /** Number of things done, f.e. 3x check blood pressure, 3x 15 minutes etc.
+     *  May have up to 2 decimal places (a service started at a budget limit).
+     *  einzelpreis * anzahl is rounded to whole cents per Leistung before it is
+     *  added up, so that the amounts of a Fall match a bill that is calculated
+     *  line by line. */
     anzahl: number
     punktwert: number | null
     punktzahl: number | null
