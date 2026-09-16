@@ -14,9 +14,9 @@ import { error, warning } from "../validation/utils";
 export const isValidCertificate = async <T>(
     obj: T, 
     property: keyof T, 
-    issuerCertificateBinary?: ArrayBuffer
+    issuerCertificateBinary?: ArrayBuffer | Uint8Array
 ): Promise<ValidationError[]> => {
-    const certificateBinary = obj[property] as unknown as Uint8Array;
+    const certificateBinary = obj[property] as unknown as ArrayBuffer | Uint8Array;
     let notAfter: Date | undefined = undefined;
     let notBefore: Date | undefined = undefined;
     let verified = false;

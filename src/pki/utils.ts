@@ -23,10 +23,10 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
     return btoa(binary);
 }
 
-export const bufferToCertificate = (certificate: ArrayBuffer): Certificate => 
+export const bufferToCertificate = (certificate: ArrayBuffer | Uint8Array): Certificate => 
     new Certificate({ schema: fromBER(certificate).result });
 
-export const bufferToCertificationRequest = (certificate: ArrayBuffer) =>
+export const bufferToCertificationRequest = (certificate: ArrayBuffer | Uint8Array) =>
     CertificationRequest.fromBER(certificate);
 
 export const certificateToBuffer = (certificate: Certificate) =>
