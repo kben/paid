@@ -51,6 +51,22 @@ export const calculateFall = (fall: Abrechnungsfall) => {
             return result;
         }, makeAmounts());
 
+    if (fall.hoechstleistungsanspruch != null) {
+        // Leistungen über dem Höchstleistungsanspruch trägt der Versicherte: Der Überhang
+        // geht als Eigenanteil in dasselbe Datenelement wie die gesetzliche Zuzahlung
+        // („Zuzahlungsbetrag / Eigenanteil des Versicherten“), der Rechnungsbetrag endet
+        // am Anspruch. Gerechnet in ganzen Cent, damit Brutto = Rechnung + Eigenanteil
+        // exakt aufgeht. Die Beihilfe-Teilung folgt danach auf den begrenzten Betrag.
+        // Betragsweise, damit eine Gutschrift (negative Mengen) spiegelbildlich begrenzt wird.
+        const nettoCent = Math.round(amounts.rechnungsbetrag * 100);
+        const anspruchCent = Math.round(Math.abs(fall.hoechstleistungsanspruch) * 100);
+        if (Math.abs(nettoCent) > anspruchCent) {
+            const begrenztCent = Math.sign(nettoCent) * anspruchCent;
+            amounts.zuzahlungsbetrag += (nettoCent - begrenztCent) / 100;
+            amounts.rechnungsbetrag = begrenztCent / 100;
+        }
+    }
+
     if (fall.beihilfeberechtigt) {
         // § 28 Abs. 2 SGB XI: Bei Beihilfeberechtigten übernimmt die Pflegekasse die
         // zustehenden Leistungen nur zur Hälfte; die andere Hälfte trägt die Beihilfe.

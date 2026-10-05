@@ -1,6 +1,7 @@
 import { calculateFall, calculateInvoice } from "../../src/sgb-xi/calculation";
 import { Abrechnungsfall, Invoice, Leistung } from "../../src/sgb-xi/types";
 import { price } from "../../src/formatter";
+import { IAF } from "../../src/sgb-xi/segments";
 
 /** Minimale Leistung: calculateFall liest nur verguetungsart, einzelpreis und anzahl. */
 const leistung = (einzelpreis: number, anzahl: number) => ({
@@ -20,8 +21,9 @@ const hilfsmittelLeistung = (einzelpreis: number, gesetzlicheZuzahlungBetrag: nu
     }
 }) as unknown as Leistung;
 
-const fall = (beihilfeberechtigt: boolean, einsaetze: Leistung[][]) => ({
+const fall = (beihilfeberechtigt: boolean, einsaetze: Leistung[][], hoechstleistungsanspruch?: number) => ({
     beihilfeberechtigt,
+    hoechstleistungsanspruch,
     einsaetze: einsaetze.map(leistungen => ({ leistungen }))
 }) as unknown as Abrechnungsfall;
 
@@ -173,6 +175,82 @@ describe("calculateInvoice mit Beihilfe", () => {
         expect(amounts.beihilfebetrag).toBeCloseTo(361.73, 2);
         expect(cent(amounts.rechnungsbetrag) + cent(amounts.beihilfebetrag))
             .toEqual(cent(amounts.gesamtbruttobetrag));
+    });
+
+});
+
+describe("calculateFall mit Höchstleistungsanspruch", () => {
+
+    /** Echter Fall (§ 45b, August 2026): 7 Einsätze mit je 6,31 € × 1 und 12,98 € × 8 = 771,05 €. */
+    const einsaetze771 = Array.from({ length: 7 }, () => [leistung(6.31, 1), leistung(12.98, 4), leistung(12.98, 4)]);
+
+    it("weist den Überhang über dem Anspruch als Eigenanteil aus", () => {
+        const amounts = calculateFall(fall(false, einsaetze771, 131));
+
+        expect(amounts.gesamtbruttobetrag).toEqual(771.05);
+        expect(amounts.zuzahlungsbetrag).toEqual(640.05);
+        expect(amounts.rechnungsbetrag).toEqual(131);
+        expect(IAF(amounts)).toEqual("IAF+771,05+640,05++131,00'\n");
+    });
+
+    it("begrenzt auf einen Anspruch, der kein Vielfaches des Einzelpreises ist", () => {
+        // 12,98 € × 10 = 129,80 € bei verbleibendem Anspruch 90,00 €.
+        const amounts = calculateFall(fall(false, [[leistung(12.98, 10)]], 90));
+
+        expect(IAF(amounts)).toEqual("IAF+129,80+39,80++90,00'\n");
+    });
+
+    it("lässt einen Fall unter dem Anspruch unverändert", () => {
+        const amounts = calculateFall(fall(false, [[leistung(12.98, 10)]], 131));
+
+        expect(amounts.gesamtbruttobetrag).toEqual(129.8);
+        expect(amounts.zuzahlungsbetrag).toEqual(0);
+        expect(amounts.rechnungsbetrag).toEqual(129.8);
+    });
+
+    it("weist bei Anspruch 0 alles als Eigenanteil aus", () => {
+        const amounts = calculateFall(fall(false, [[leistung(12.98, 2)]], 0));
+
+        expect(amounts.zuzahlungsbetrag).toEqual(25.96);
+        expect(amounts.rechnungsbetrag).toEqual(0);
+    });
+
+    it("teilt bei Beihilfe erst den auf den Anspruch begrenzten Betrag", () => {
+        const amounts = calculateFall(fall(true, einsaetze771, 131));
+
+        expect(amounts.gesamtbruttobetrag).toEqual(771.05);
+        expect(amounts.zuzahlungsbetrag).toEqual(640.05);
+        expect(amounts.rechnungsbetrag).toEqual(65.5);
+        expect(amounts.beihilfebetrag).toEqual(65.5);
+        expect(cent(amounts.rechnungsbetrag) + cent(amounts.beihilfebetrag) + cent(amounts.zuzahlungsbetrag))
+            .toEqual(cent(amounts.gesamtbruttobetrag));
+    });
+
+    it("rechnet die gesetzliche Zuzahlung vor dem Anspruch ab", () => {
+        // 100,01 € Hilfsmittel, 10 € Zuzahlung, Anspruch 50 € → Eigenanteil 40,01 €.
+        const amounts = calculateFall(fall(false, [[hilfsmittelLeistung(100.01, 10)]], 50));
+
+        expect(amounts.zuzahlungsbetrag).toEqual(50.01);
+        expect(amounts.rechnungsbetrag).toEqual(50);
+    });
+
+    it("begrenzt eine Gutschrift spiegelbildlich", () => {
+        const amounts = calculateFall(fall(false, [[leistung(771.05, -1)]], 131));
+
+        expect(amounts.gesamtbruttobetrag).toEqual(-771.05);
+        expect(amounts.zuzahlungsbetrag).toEqual(-640.05);
+        expect(amounts.rechnungsbetrag).toEqual(-131);
+    });
+
+    it("summiert die Eigenanteile der Fälle in der Rechnung", () => {
+        const invoice = {
+            faelle: [fall(false, einsaetze771, 131), fall(false, [[leistung(12.98, 10)]], 90)]
+        } as unknown as Invoice;
+        const amounts = calculateInvoice(invoice);
+
+        expect(cent(amounts.gesamtbruttobetrag)).toEqual(90085);
+        expect(cent(amounts.zuzahlungsbetrag)).toEqual(67985);
+        expect(cent(amounts.rechnungsbetrag)).toEqual(22100);
     });
 
 });

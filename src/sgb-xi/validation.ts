@@ -42,6 +42,7 @@ const constraintsAbrechnungsfall = (fall: Abrechnungsfall) => [
     ...arrayConstraints<Pflegegrad>(fall.versicherter, "pflegegrad", constraintsPflegegrad),
     isVarchar(fall, "tarifkennzeichen", 3, 0),
     isOptionalVarchar(fall, "belegnummer", 10),
+    isOptionalNumber(fall, "hoechstleistungsanspruch", 0, 1e10),
     isArray(fall, "einsaetze", 1),
     ...arrayConstraints(fall, "einsaetze", constraintsEinsatz),
     // ensure there are no einsaetze in time windows without pflegegrad (value == ""):

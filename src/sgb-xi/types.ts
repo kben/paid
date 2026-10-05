@@ -79,6 +79,16 @@ export type Abrechnungsfall = {
      *  Leistung auf ganze Cent gerundeten Werten besteht (siehe anzahl), sodass
      *  jeder ausgewiesene Betrag ein exakter Cent ist. Default: false. */
     beihilfeberechtigt?: boolean
+    /** Höchstleistungsanspruch des Falls in Euro: der Betrag, bis zu dem die Pflegekasse
+     *  die Leistungen dieses Falls übernimmt (bei Beihilfeberechtigten vor der Teilung,
+     *  also Pflegekasse und Beihilfe zusammen). Liegt der Betrag der Leistungen (nach
+     *  gesetzlicher Zuzahlung) darüber, wird der Überhang als Eigenanteil des
+     *  Versicherten im Datenelement „Zuzahlungsbetrag / Eigenanteil des Versicherten“
+     *  (IAF/GES) ausgewiesen und der Rechnungsbetrag auf den Anspruch begrenzt — siehe
+     *  TA1 § 105, Segment IAF: „Zu füllen bei Pflegehilfsmitteln oder wenn der
+     *  Bruttobetrag über den Höchstleistungsanspruch liegt.“ Nicht gesetzt: keine
+     *  Begrenzung. */
+    hoechstleistungsanspruch?: number
     einsaetze: Einsatz[]
 }
 
