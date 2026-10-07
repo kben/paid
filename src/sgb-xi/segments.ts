@@ -263,9 +263,13 @@ export const ELS = (leistung: Leistung) => segment(
     number(leistung.punktzahl, 0),
     getLeistungDetails(leistung),
     number(leistung.anzahl, 2),
-    number(leistung.beschaeftigtennummer1),
-    number(leistung.beschaeftigtennummer2),
+    beschaeftigtennummer(leistung.beschaeftigtennummer1),
+    beschaeftigtennummer(leistung.beschaeftigtennummer2),
 )
+
+/** Beschäftigtennummer is a fixed-length 9-digit field (TA1 "9 n") — keep leading zeros. */
+const beschaeftigtennummer = (value: number | null | undefined) =>
+    value == null ? "" : value.toString().padStart(9, "0")
 
 /** see codes.ts - 2.7 Schlüssel Leistung */
 const getLeistungSchluessel = (leistung: Leistung): string | undefined => {
